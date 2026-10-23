@@ -77,6 +77,8 @@ export function CountUp({ text }: { text: string }) {
   useEffect(() => {
     const el = ref.current;
     if (!el || reducedMotion() || !("IntersectionObserver" in window)) return;
+    // Only count quantities. A version ("v1.05", "1.0.0") is a label.
+    if (/^v?\d+(\.\d+){1,2}$/.test(text.trim())) return;
     const m = text.match(/[\d,]+(\.\d+)?/);
     if (!m) return;
     const target = parseFloat(m[0].replace(/,/g, ""));

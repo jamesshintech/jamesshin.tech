@@ -630,6 +630,156 @@ h2 em,
   color: var(--ink-soft);
 }
 
+/* ─── Yonmoku board (CSS 3D; geometry constants are set inline) ─── */
+.scene {
+  display: grid;
+  place-items: center;
+  perspective: 900px;
+  overflow: hidden;
+}
+.board3d {
+  position: relative;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(-24deg) rotateY(30deg);
+  animation: turn 48s linear infinite;
+}
+.board3d .base {
+  position: absolute;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #e9d9b5, #cdb98a);
+  transform: rotateX(90deg);
+  box-shadow: 0 0 0 2px #a88d5e, 0 30px 40px -20px rgba(0, 0, 0, 0.6);
+}
+.board3d .peg {
+  position: absolute;
+  left: 0;
+  width: 0;
+  transform-style: preserve-3d;
+}
+.board3d .rod {
+  position: absolute;
+  left: -2.5px;
+  top: 0;
+  width: 5px;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #8a6b3c, #c99a5b, #8a6b3c);
+}
+.board3d .rod.b,
+.board3d .bead .b {
+  transform: rotateY(90deg);
+}
+.board3d .bead {
+  position: absolute;
+  transform-style: preserve-3d;
+}
+.board3d .bead i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+.board3d .bead.dark i {
+  background: radial-gradient(circle at 35% 30%, #5a4536, #2a1f18 60%, #15100c);
+}
+.board3d .bead.light i {
+  background: radial-gradient(circle at 35% 30%, #fff6e1, #e3cc9d 60%, #b9985f);
+}
+@keyframes turn {
+  to {
+    transform: rotateX(-24deg) rotateY(390deg);
+  }
+}
+
+/* ─── Chapter numerals: a huge faint "01" behind each chapter ─── */
+.ch {
+  position: relative;
+  overflow: hidden;
+}
+.ch .num {
+  position: absolute;
+  top: 8px;
+  right: 2vw;
+  font-family: var(--display);
+  font-style: italic;
+  font-size: clamp(160px, 24vw, 320px);
+  line-height: 1;
+  color: var(--gold);
+  opacity: 0.07;
+  pointer-events: none;
+  user-select: none;
+}
+.ch.flip .num {
+  right: auto;
+  left: 2vw;
+}
+.ch .wrap {
+  position: relative;
+}
+
+/* ─── Receipts draw their own rules in, one after another ─── */
+.receipts li {
+  border-top: 0;
+}
+.receipts li::before {
+  content: "";
+  grid-column: 1 / -1;
+  height: 1px;
+  background: var(--hair);
+  margin-top: -10px;
+  transform-origin: left;
+}
+.ledger li {
+  --d: 0s;
+}
+
+/* ─── Scroll-driven layer. Only where the browser supports it; the
+   timed board rotation and static layout remain the fallback. ─── */
+@supports (animation-timeline: view()) {
+  .panel .frame,
+  .panel .scene {
+    animation: parallax linear both;
+    animation-timeline: view();
+    animation-range: entry 0% exit 100%;
+  }
+  .ch .num {
+    animation: drift linear both;
+    animation-timeline: view();
+    animation-range: entry 0% exit 100%;
+  }
+  /* The board turns with the scroll instead of on a timer. */
+  .board3d {
+    animation: turn-scroll linear both;
+    animation-timeline: view();
+    animation-range: entry 0% exit 100%;
+  }
+  @keyframes parallax {
+    from {
+      transform: translateY(36px);
+    }
+    to {
+      transform: translateY(-36px);
+    }
+  }
+  @keyframes drift {
+    from {
+      transform: translateY(90px);
+    }
+    to {
+      transform: translateY(-140px);
+    }
+  }
+  @keyframes turn-scroll {
+    from {
+      transform: rotateX(-24deg) rotateY(-40deg);
+    }
+    to {
+      transform: rotateX(-24deg) rotateY(160deg);
+    }
+  }
+}
+
 /* ─── Motion. armed = waiting below the fold; lit = playing once. ─── */
 .armed .rise {
   opacity: 0;
@@ -660,6 +810,27 @@ h2 em,
 }
 .lit .rise.d3 {
   animation-delay: 0.24s;
+}
+.lit .rise.d4 {
+  animation-delay: 0.32s;
+}
+/* Hero ledger rows and receipt rows arrive one after another. */
+.armed .ledger li,
+.armed .receipts li {
+  opacity: 0;
+  transform: translateY(14px);
+}
+.lit .ledger li,
+.lit .receipts li {
+  animation: rise 0.7s var(--ease) both;
+  animation-delay: calc(0.35s + var(--d));
+}
+.armed .receipts li::before {
+  transform: scaleX(0.05);
+}
+.lit .receipts li::before {
+  animation: grow 0.9s var(--ease) both;
+  animation-delay: calc(0.45s + var(--d));
 }
 .lit .draw {
   animation: draw 1.3s var(--ease) both;
@@ -717,12 +888,22 @@ h2 em,
   .lit .draw,
   .lit .pop,
   .lit .grow,
-  .lit .best {
+  .lit .best,
+  .lit .ledger li,
+  .lit .receipts li,
+  .lit .receipts li::before,
+  .board3d,
+  .panel .frame,
+  .panel .scene,
+  .ch .num {
     animation: none !important;
   }
   .armed .rise,
   .armed .pop,
-  .armed .grow {
+  .armed .grow,
+  .armed .ledger li,
+  .armed .receipts li,
+  .armed .receipts li::before {
     opacity: 1;
     transform: none;
   }

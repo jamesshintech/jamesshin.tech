@@ -42,23 +42,23 @@ export default function Home() {
       <ProgressBar />
       <Nav current="home" />
 
-      <header className="hero">
+      <Lit as="header" className="hero">
         <div className="wrap">
-          <p className="eyebrow">
+          <p className="eyebrow rise">
             {siteConfig.name} · {siteConfig.role}
           </p>
-          <h1>
+          <h1 className="rise d1">
             I ship the <em>whole</em> thing.
             <span className="h1-sub">Idea to App Store, alone.</span>
           </h1>
-          <p className="line">
+          <p className="line rise d2">
             {live} products live and {inReview} in App Store review: a rankings site that covers 30,000+ US high
             schools, and three iOS apps, each designed, built, tested and submitted by one person. The numbers
             below link to where they come from.
           </p>
           <ol className="ledger" aria-label="Projects on this page">
             {projects.map((p, i) => (
-              <li key={p.slug}>
+              <li key={p.slug} style={{ ["--d" as string]: `${i * 0.1}s` }}>
                 <span className="n">{String(i + 1).padStart(2, "0")}</span>
                 <span>
                   <a href={`#${p.slug}`}>{p.name}</a>
@@ -71,11 +71,14 @@ export default function Home() {
             ))}
           </ol>
         </div>
-      </header>
+      </Lit>
 
       <main id="work">
         {projects.map((p, i) => (
           <Lit key={p.slug} as="section" id={p.slug} className={`ch${i % 2 === 1 ? " flip" : ""}`} aria-labelledby={`${p.slug}-h`}>
+            <span className="num" aria-hidden="true">
+              {String(i + 1).padStart(2, "0")}
+            </span>
             <div className="wrap">
               <div className="text">
                 <p className="eyebrow rise">{p.eyebrow}</p>
@@ -83,9 +86,9 @@ export default function Home() {
                   <Em text={p.headline} />
                 </h2>
                 <p className="line rise d2">{p.line}</p>
-                <ul className="receipts rise d3">
-                  {p.receipts.map((r) => (
-                    <li key={r.label}>
+                <ul className="receipts">
+                  {p.receipts.map((r, k) => (
+                    <li key={r.label} style={{ ["--d" as string]: `${k * 0.12}s` }}>
                       <span className="n">
                         <CountUp text={r.value} />
                       </span>
@@ -93,10 +96,10 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
-                <p className="stack rise d3">
+                <p className="stack rise d4">
                   Built with <b>{p.stack.join(" · ")}</b>
                 </p>
-                <p className="links rise d3">
+                <p className="links rise d4">
                   {p.links.map((l, k) => (
                     <a key={l.url} href={l.url} className={`btn${k === 0 ? " solid" : ""}`} target="_blank" rel="noopener noreferrer">
                       {l.label} ↗

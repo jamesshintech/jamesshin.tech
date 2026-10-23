@@ -69,19 +69,13 @@ export function Yonmoku3D() {
           );
         })}
       </div>
+      {/* Geometry that depends on the constants above; the look and the
+          motion live in globals.css under "Yonmoku board". */}
       <style>{`
-        .scene { height: ${PEG_H + 190}px; display: grid; place-items: center; perspective: 900px; overflow: hidden; }
-        .board3d { position: relative; width: 0; height: 0; transform-style: preserve-3d; transform: rotateX(-24deg) rotateY(30deg); animation: turn 48s linear infinite; }
-        .board3d .base { position: absolute; left: ${-2.3 * STEP}px; top: ${-2.3 * STEP}px; width: ${4.6 * STEP}px; height: ${4.6 * STEP}px; border-radius: 6px; background: linear-gradient(135deg, #e9d9b5, #cdb98a); transform: rotateX(90deg); box-shadow: 0 0 0 2px #a88d5e, 0 30px 40px -20px rgba(0,0,0,.6); }
-        .board3d .peg { position: absolute; left: 0; top: ${-PEG_H}px; width: 0; height: ${PEG_H}px; transform-style: preserve-3d; }
-        .board3d .rod { position: absolute; left: -2.5px; top: 0; width: 5px; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #8a6b3c, #c99a5b, #8a6b3c); }
-        .board3d .rod.b, .board3d .bead .b { transform: rotateY(90deg); }
-        .board3d .bead { position: absolute; left: ${-BEAD / 2}px; width: ${BEAD}px; height: ${BEAD}px; transform-style: preserve-3d; }
-        .board3d .bead i { position: absolute; inset: 0; border-radius: 50%; }
-        .board3d .bead.dark i { background: radial-gradient(circle at 35% 30%, #5a4536, #2a1f18 60%, #15100c); }
-        .board3d .bead.light i { background: radial-gradient(circle at 35% 30%, #fff6e1, #e3cc9d 60%, #b9985f); }
-        @keyframes turn { to { transform: rotateX(-24deg) rotateY(390deg); } }
-        @media (prefers-reduced-motion: reduce) { .board3d { animation: none; } }
+        .scene { height: ${PEG_H + 190}px; }
+        .board3d .base { left: ${-2.3 * STEP}px; top: ${-2.3 * STEP}px; width: ${4.6 * STEP}px; height: ${4.6 * STEP}px; }
+        .board3d .peg { top: ${-PEG_H}px; height: ${PEG_H}px; }
+        .board3d .bead { left: ${-BEAD / 2}px; width: ${BEAD}px; height: ${BEAD}px; }
       `}</style>
     </div>
   );
