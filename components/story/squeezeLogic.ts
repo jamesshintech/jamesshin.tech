@@ -1,8 +1,11 @@
-// Pure rules for one round of Squeeze, kept free of React so they can be
-// unit-tested. Mirrors the shipped game: a window either traps the answer
-// (the placer wins) or misses it (the forcer wins).
+// Pure rules for one round of Squeeze 2.0, kept free of React so they can
+// be unit-tested. Mirrors the shipped game: you bet how close you can get
+// ("±300"), your window is your guess ± your claim, and a forcer who calls
+// the bluff bets the answer lands outside it, above or below.
 
 export type Window = [number, number];
+export type Side = "above" | "below";
+export type Winner = "you" | "rival" | "none";
 
 export interface RoundResult {
   inside: boolean;
@@ -10,6 +13,7 @@ export interface RoundResult {
   margin: number;
   /** "Inside by 40" / "Missed by 2.1 million", without the unit. */
   story: string;
+  winner: Winner;
 }
 
 /** Compact number: 1,234 → "1,234"; 2,100,000 → "2.1 million". */
@@ -28,23 +32,39 @@ function trim(n: number, decimals = 1): string {
   return s.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
 }
 
-export function scoreRound(window: Window, answer: number): RoundResult {
+/** The window a claim makes: guess ± claim, never below zero. */
+export function windowFromClaim(guess: number, claim: number): Window {
+  const c = Math.abs(claim);
+  return [Math.max(0, guess - c), guess + c];
+}
+
+/**
+ * Score a round. Unforced (the rival conceded): inside wins, outside loses.
+ * Forced: the forcer also called a side; outside on that side is the
+ * forcer's, outside on the other side scores nobody.
+ */
+export function scoreRound(window: Window, answer: number, called: Side | null = null): RoundResult {
   const lo = Math.min(window[0], window[1]);
   const hi = Math.max(window[0], window[1]);
   if (answer >= lo && answer <= hi) {
     const margin = Math.min(answer - lo, hi - answer);
-    return { inside: true, margin, story: `Inside by ${formatNumber(margin)}` };
+    return { inside: true, margin, story: `Inside by ${formatNumber(margin)}`, winner: "you" };
   }
-  const margin = answer < lo ? lo - answer : answer - hi;
-  return { inside: false, margin, story: `Missed by ${formatNumber(margin)}` };
+  const below = answer < lo;
+  const margin = below ? lo - answer : answer - hi;
+  const story = `Missed by ${formatNumber(margin)}`;
+  if (called === null) return { inside: false, margin, story, winner: "rival" };
+  const landedOnCalledSide = (called === "below" && below) || (called === "above" && !below);
+  return { inside: false, margin, story, winner: landedOnCalledSide ? "rival" : "none" };
 }
 
-/** Log-scale helpers for the number line. */
+/** Log-scale helpers for the number line (0 is drawn at the left edge). */
 export const LINE_MIN = 1;
 export const LINE_MAX = 1e10;
 
 export function toPos(value: number): number {
-  const v = Math.min(LINE_MAX, Math.max(LINE_MIN, value));
+  if (value < LINE_MIN) return 0;
+  const v = Math.min(LINE_MAX, value);
   return Math.log10(v) / Math.log10(LINE_MAX);
 }
 
@@ -54,20 +74,27 @@ export function fromPos(p: number): number {
 }
 
 /**
- * The width of a window as a ratio hi/lo (log-scale width). The shipped
- * game speaks in absolute widths; on a log line a ratio is the honest
- * equivalent across answers from 10 to 10 billion.
+ * The claim as a share of the guess. The game lets you type any number;
+ * the sketch offers a slider from ±2% to ±200% of the guess.
  */
-export function windowFromCenter(center: number, ratio: number): Window {
-  const half = Math.sqrt(ratio);
-  return [Math.max(LINE_MIN, center / half), Math.min(LINE_MAX, center * half)];
+export const CLAIM_PCT_MIN = 2;
+export const CLAIM_PCT_MAX = 200;
+export const CLAIM_PCT_START = 60;
+
+export function claimFromPercent(guess: number, pct: number): number {
+  return round2sf((guess * pct) / 100);
 }
 
-/** The rival forces when the window is still wide. Ratio 20 = "2 orders of magnitude, nearly". */
-export const RIVAL_FORCE_RATIO = 20;
+/** The rival calls the bluff when the claim is still wide: more than ±50% of the guess. */
+export const RIVAL_FORCE_PCT = 50;
 
-export function rivalForces(ratio: number): boolean {
-  return ratio > RIVAL_FORCE_RATIO;
+export function rivalForces(pct: number): boolean {
+  return pct > RIVAL_FORCE_PCT;
+}
+
+/** Which side the rival calls when forcing. Deterministic per question so server and client agree. */
+export function rivalSide(questionIndex: number): Side {
+  return questionIndex % 2 === 0 ? "above" : "below";
 }
 
 /** Round a number to two significant figures for display on the line. */

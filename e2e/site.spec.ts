@@ -16,7 +16,7 @@ test.describe("home", () => {
     const chapters: [string, string, RegExp][] = [
       ["highschooltrends", "HighSchoolTrends.org", /30,000\+/],
       ["vitality-weeks", "Vitality Weeks", /4,680/],
-      ["squeeze", "Squeeze: The Estimation Duel", /7,900\+/],
+      ["squeeze", "Squeeze: The Estimation Duel", /close/],
       ["yonmoku", "Yonmoku: 3D Four in a Row", /three/],
     ];
     for (const [slug, name, headline] of chapters) {

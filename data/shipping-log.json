@@ -1,5 +1,14 @@
 [
   {
+    "date": "2026-10-23",
+    "product": "Squeeze: The Estimation Duel",
+    "title": "Squeeze: The Estimation Duel 2.0",
+    "body": "Squeeze 2.0 is a brand-new game world. A bridge in the clouds, a fox and a dog, and a number line that zooms with your every move — from a sliver of a claim to the whole sky when someone was WAY off. Type your claim, then slide your guess along a line that runs from 0 to infinity (or type it): no ceilings, no hints, any number goes. WATCH: the fox and the dog play one short round for you before…",
+    "version": "2.0",
+    "url": "https://apps.apple.com/us/app/squeeze-the-estimation-duel/id6803632348",
+    "source": "App Store release notes, US storefront"
+  },
+  {
     "date": "2026-10-21",
     "product": "HighSchoolTrends.org",
     "title": "Rank-change explainer with typical movement from proven pairs",
@@ -120,13 +129,13 @@
     "source": "HighSchoolTrends merged pull requests (feat)"
   },
   {
-    "date": "2026-10-05",
+    "date": "2026-10-04",
     "product": "Squeeze: The Estimation Duel",
     "title": "Squeeze: The Estimation Duel 1.05",
     "body": "Photos that always fit the question. Every photo now matches its question: a question about a place shows that place, and every other question gets a scene that fits its topic — never a different city by mistake. 20 new photos: Los Angeles, Las Vegas, Orlando, London, Dubai, Amsterdam, Chicago and Barcelona, plus new scenes for world, history and money questions. Near You is smarter in Los…",
     "version": "1.05",
     "url": "https://apps.apple.com/us/app/squeeze-the-estimation-duel/id6803632348",
-    "source": "App Store release notes, US storefront"
+    "source": "release copy in the product repo, dated by the commit that added it"
   },
   {
     "date": "2026-09-29",
