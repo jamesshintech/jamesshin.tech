@@ -27,6 +27,28 @@ Then: "suppliers can be commoditized leaving consumers/users as a first order pr
 
 Where the money goes next: "when modularity and commoditization cause attractive profits to disappear at one stage in the value chain, the opportunity to earn attractive profits with proprietary products will usually emerge at an adjacent stage." — [Clayton Christensen, via Stratechery](https://stratechery.com/2015/netflix-and-the-conservation-of-attractive-profits/)
 
+<figure class="fig fig--shift">
+<div class="fig-row">
+<p class="fig-row-h">Before the Internet</p>
+<ol class="fig-flow fig-flow--row">
+<li class="fig-node fig-node--ink"><strong>Suppliers</strong></li>
+<li class="fig-node fig-node--ink"><strong>Distributors</strong></li>
+<li class="fig-node fig-node--plain"><strong>Users</strong></li>
+</ol>
+<p class="fig-row-n">Distribution is scarce, so distributors integrate with suppliers.</p>
+</div>
+<div class="fig-row">
+<p class="fig-row-h">After</p>
+<ol class="fig-flow fig-flow--row">
+<li class="fig-node fig-node--plain"><strong>Suppliers</strong><br>commoditized</li>
+<li class="fig-node fig-node--ink"><strong>Aggregator</strong><br>best experience</li>
+<li class="fig-node fig-node--ink"><strong>Users</strong><br>first-order priority</li>
+</ol>
+<p class="fig-row-n">Distribution and transactions are free, so the aggregator integrates with users.</p>
+</div>
+<figcaption>Figure 1. Ink marks the integrated pair. When distribution goes free, integration moves from the supply side to the user side, and the profits move with it to the adjacent stage.</figcaption>
+</figure>
+
 **AI fits the pattern:**
 
 > "When it comes to AI, distribution and transaction costs are still free — the two preconditions for Aggregators — which means that the winners should be those with the most compelling products." — [Ben Thompson, "Mythos, Muse, and the Opportunity Cost of Compute"](https://stratechery.com/2026/mythos-muse-and-the-opportunity-cost-of-compute/)
@@ -43,6 +65,16 @@ The backdrop is fiscal dominance: the point where "the sovereign debt load is bi
 
 **Put together:** abundant capital builds abundant compute, compute makes everything else abundant, and the scarce thing left is the user's attention and trust.
 
+<figure class="fig fig--chain">
+<ol class="fig-flow fig-flow--wide-row">
+<li class="fig-node fig-node--plain"><strong>Cheap capital</strong><br>fiscal dominance keeps it funding supply</li>
+<li class="fig-node"><strong>Abundant compute</strong><br>so much capex, thin margins</li>
+<li class="fig-node"><strong>Abundant supply</strong><br>software, writing and apps, nearly free</li>
+<li class="fig-node fig-node--ink"><strong>Scarce</strong><br>the user’s attention and trust</li>
+</ol>
+<figcaption>Figure 2. Each stage makes the next one cheap. The only input that does not get cheaper is the last one.</figcaption>
+</figure>
+
 ## Yes, but
 
 The strongest counter-argument is that compute is scarce again: "The era of Aggregation Theory is behind us, and AI is again making technology expensive." — [Doug O'Laughlin, via Stratechery](https://stratechery.com/2026/mythos-muse-and-the-opportunity-cost-of-compute/)
@@ -50,6 +82,29 @@ The strongest counter-argument is that compute is scarce again: "The era of Aggr
 "It's opportunity costs, not marginal costs, that are the challenge facing hyperscalers." Companies "will not be able to assume they can serve everyone." — [Ben Thompson](https://stratechery.com/2026/mythos-muse-and-the-opportunity-cost-of-compute/)
 
 If one lab pulls clearly ahead on capability, owning compute could capture the surplus for a while. The demand side doesn't vanish in that world; it narrows to subjects and products people trust more than any model.
+
+<figure class="fig fig--scenarios">
+<div class="fig-cols">
+<div class="fig-col">
+<p class="fig-row-h">If demand wins: Thompson’s bet</p>
+<ol class="fig-flow">
+<li class="fig-node fig-node--plain">Distribution and transaction costs stay free</li>
+<li class="fig-node fig-node--plain">The most compelling product wins the users</li>
+<li class="fig-node">Owning demand trumps owning supply</li>
+</ol>
+</div>
+<div class="fig-col">
+<p class="fig-row-h">If compute wins: O’Laughlin’s case</p>
+<ol class="fig-flow">
+<li class="fig-node fig-node--plain">Compute stays constrained</li>
+<li class="fig-node fig-node--plain">Companies can’t assume they can serve everyone: opportunity cost, not marginal cost</li>
+<li class="fig-node">Owning compute captures the surplus, for a while</li>
+</ol>
+</div>
+</div>
+<p class="fig-node fig-node--ink fig-verdict">Either way, demand survives. It narrows to the products and people trusted on a specific subject.</p>
+<figcaption>Figure 3. The two readings of the same boom, and what holds in both.</figcaption>
+</figure>
 
 ## What I do about it
 

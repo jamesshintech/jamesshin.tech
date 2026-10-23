@@ -50,6 +50,10 @@ function wordCount(markdown: string): number {
   return markdown
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/`[^`]*`/g, " ")
+    // Figures are diagram labels, not prose; other raw HTML contributes only its text.
+    .replace(/<figure[\s\S]*?<\/figure>/g, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\[\^[^\]]+\]:?/g, " ")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/[#>*_~\-]/g, " ")
@@ -141,12 +145,39 @@ export function getAdjacent(slug: string): { prev: Post | null; next: Post | nul
   };
 }
 
+type MdNode = { type: string; value?: string; children?: MdNode[] };
+
+/**
+ * Wraps every table in a focusable scroll region, so a wide table scrolls
+ * inside the column on a phone instead of widening the page.
+ */
+function remarkScrollableTables() {
+  const wrap = (node: MdNode) => {
+    if (!node.children) return;
+    node.children = node.children.flatMap((child) => {
+      if (child.type !== "table") {
+        wrap(child);
+        return [child];
+      }
+      return [
+        { type: "html", value: '<div class="table-scroll" role="region" aria-label="Table, scrolls sideways" tabindex="0">' },
+        child,
+        { type: "html", value: "</div>" },
+      ];
+    });
+  };
+  return (tree: MdNode) => wrap(tree);
+}
+
 export async function renderPostHtml(post: Post): Promise<PostWithHtml> {
   const processed = await remark()
     .use(remarkGfm)
+    .use(remarkScrollableTables)
     .use(remarkHtml, { sanitize: false })
     .process(post.raw);
-  return { ...post, html: String(processed) };
+  // U+FE0E keeps the footnote back-arrow as text; iOS otherwise draws "↩" as an emoji.
+  const html = String(processed).replace(/(class="data-footnote-backref">)↩/g, "$1↩︎");
+  return { ...post, html };
 }
 
 export function groupByYear(posts: Post[]): { year: string; posts: Post[] }[] {

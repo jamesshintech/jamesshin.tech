@@ -4,6 +4,9 @@ import { test, expect } from "@playwright/test";
 // with the PII guard; this is the deployed-surface check, not the diff check.
 const BANNED = [/JJ Fisher/i, /jjfisher\.dev/i, /single-family/i, /holding company/i];
 
+const BILLING = "/writing/2026-w43-billing-controls-from-checklists-to-harnesses";
+const MOAT = "/writing/2026-w17-the-distribution-moat-in-the-ai-era";
+
 test.describe("home", () => {
   test("a grid of four product tiles, each a recording with a one-liner and a link, then the essays", async ({ page }) => {
     await page.goto("/");
@@ -40,7 +43,7 @@ test.describe("home", () => {
     });
     expect(words).toBeLessThan(120);
 
-    await expect(page.locator("section#essays ul.archive li")).toHaveCount(1);
+    await expect(page.locator("section#essays ul.archive li")).toHaveCount(2);
 
     const html = await page.content();
     for (const re of BANNED) expect(html, `banned string ${re}`).not.toMatch(re);
@@ -80,7 +83,7 @@ test.describe("home", () => {
   });
 
   test("the essay quotes without narrating who it quotes", async ({ request }) => {
-    const html = await (await request.get("/writing/2026-w17-the-distribution-moat-in-the-ai-era")).text();
+    const html = await (await request.get(MOAT)).text();
     expect(html).not.toMatch(/in the words of/i);
     expect(html).toContain("TL;DR");
     // Every quotation carries its source as a link.
@@ -98,19 +101,80 @@ test.describe("home", () => {
 });
 
 test.describe("writing", () => {
-  test("only the distribution moat essay is published", async ({ page }) => {
+  test("two essays are published, newest first", async ({ page }) => {
     await page.goto("/writing");
     const links = page.locator("ul.archive a");
-    await expect(links).toHaveCount(1);
-    await expect(links.first()).toContainText("The Distribution Moat in the AI Era");
+    await expect(links).toHaveCount(2);
+    await expect(links.nth(0)).toContainText("Billing Controls: From Checklists to Harnesses");
+    await expect(links.nth(1)).toContainText("The Distribution Moat in the AI Era");
   });
 
-  test("the essay renders and carries no old-brand footer", async ({ page }) => {
-    await page.goto("/writing/2026-w17-the-distribution-moat-in-the-ai-era");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("Distribution Moat");
-    const html = await page.content();
-    for (const re of BANNED) expect(html, `banned string ${re}`).not.toMatch(re);
-    expect(html).not.toContain("github.com/jjfisherdev/personalwebsite");
+  for (const [path, h1] of [[MOAT, "Distribution Moat"], [BILLING, "Billing Controls"]] as const) {
+    test(`${h1} renders and carries no old-brand or employer strings`, async ({ page }) => {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { level: 1 })).toContainText(h1);
+      const html = await page.content();
+      for (const re of BANNED) expect(html, `banned string ${re}`).not.toMatch(re);
+      expect(html).not.toContain("github.com/jjfisherdev/personalwebsite");
+    });
+  }
+
+  test("the billing essay keeps its honest date, bottom line, diagrams, tables and sourced footnotes", async ({ page }) => {
+    await page.goto(BILLING);
+    // Dated the day it was written; never backdated.
+    await expect(page.locator(".reader header .meta")).toContainText("October 23, 2026");
+    const lds = (await page.locator('script[type="application/ld+json"]').allTextContents()).map((t) => JSON.parse(t));
+    expect(lds.find((ld) => ld["@type"] === "Article")?.datePublished).toBe("2026-10-23");
+
+    await expect(page.locator(".prose .bluf")).toContainText("Bottom line.");
+    const figs = page.locator(".prose figure.fig");
+    await expect(figs).toHaveCount(2);
+    await expect(figs.nth(0).locator("figcaption")).toHaveText(/^Diagram 1\./);
+    await expect(figs.nth(1).locator("figcaption")).toHaveText(/^Diagram 2\./);
+    await expect(figs.nth(0).locator(".fig-lanes > li")).toHaveCount(3);
+    await expect(figs.nth(1).locator(".fig-flow > li")).toHaveCount(6);
+
+    // Every table scrolls inside a keyboard-focusable region, never the page.
+    await expect(page.locator(".prose table")).toHaveCount(3);
+    await expect(page.locator(".prose .table-scroll[tabindex='0'] > table")).toHaveCount(3);
+
+    // Quotes exactly as the sources print them; every footnote but the sample note links out.
+    await expect(page.locator(".prose")).toContainText("trust can’t be inferred—it has to be explicitly granted, scoped, and enforced in code.");
+    const notes = page.locator("section.footnotes li");
+    await expect(notes).toHaveCount(5);
+    await expect(notes.nth(4).locator("a[href^='https://status.claude.com/incidents/']")).toHaveCount(2);
+    const backref = await page.locator("a.data-footnote-backref").first().textContent();
+    expect(backref).toBe("↩︎");
+  });
+
+  test("the distribution essay has one diagram per argument step, and the word count ignores them", async ({ page }) => {
+    await page.goto(MOAT);
+    const figs = page.locator(".prose figure.fig");
+    await expect(figs).toHaveCount(3);
+    for (let i = 0; i < 3; i++) await expect(figs.nth(i).locator("figcaption")).toHaveText(new RegExp(`^Figure ${i + 1}\\.`));
+    // Diagram labels are not prose: the count stays what the text alone measures.
+    await expect(page.locator(".reader header .meta")).toContainText("610 words");
+  });
+
+  test("essay figures and tables fit at phone and desktop widths, with no word squeezed out of its box", async ({ browser }) => {
+    for (const w of [320, 390, 520, 820, 1440]) {
+      const ctx = await browser.newContext({ viewport: { width: w, height: 900 } });
+      const p = await ctx.newPage();
+      for (const path of [BILLING, MOAT]) {
+        await p.goto(path);
+        await p.evaluate(() => document.fonts.ready);
+        // Forbid mid-word breaks so a word that does not fit shows up as overflow.
+        await p.addStyleTag({ content: ".fig, .fig * { overflow-wrap: normal !important; word-break: normal !important; }" });
+        const overflowing = await p.evaluate(() =>
+          [...document.querySelectorAll(".fig .fig-node, .fig .fig-blocked")]
+            .filter((n) => n.scrollWidth > n.clientWidth + 1)
+            .map((n) => n.textContent?.trim().slice(0, 40)),
+        );
+        expect(overflowing, `${path} at ${w}px`).toEqual([]);
+        expect(await p.evaluate(() => document.documentElement.scrollWidth), `${path} scroll width at ${w}px`).toBe(w);
+      }
+      await ctx.close();
+    }
   });
 
   test("rss and sitemap use the new domain only", async ({ request }) => {
@@ -119,6 +183,9 @@ test.describe("writing", () => {
     const rssText = await rss.text();
     expect(rssText).toContain("https://jamesshin.tech/writing/");
     expect(rssText).not.toContain("jjfisher");
+    expect((rssText.match(/<item>/g) ?? []).length).toBe(2);
+    // Figures travel in the feed as plain lists, so feed readers without CSS still get the content.
+    expect(rssText).toContain('<figure class="fig');
 
     const sm = await request.get("/sitemap.xml");
     expect(sm.ok()).toBeTruthy();

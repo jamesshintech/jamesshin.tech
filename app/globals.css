@@ -588,5 +588,293 @@ summary:focus-visible {
   color: var(--muted);
 }
 
+/* ─── Essay furniture: byline, bottom-line box, scrolling tables, footnotes ─── */
+.prose .byline {
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.prose .bluf {
+  border: var(--rule);
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 16px 20px;
+  margin: 0 0 1.6em;
+}
+.prose .bluf > :last-child {
+  margin-bottom: 0;
+}
+/* lib/writing.ts wraps every table; wide ones scroll inside the column on phones. */
+.prose .table-scroll {
+  overflow-x: auto;
+  margin: 0 0 1.6em;
+}
+.prose .table-scroll:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+.prose .table-scroll table {
+  margin: 0;
+}
+.prose .table-scroll table:has(th:nth-child(3)) {
+  min-width: 480px;
+}
+.prose .table-scroll table:has(th:nth-child(4)) {
+  min-width: 620px;
+}
+.prose sup {
+  font-size: 0.65em;
+  line-height: 0;
+}
+.prose sup a,
+.prose .data-footnote-backref {
+  font-family: var(--mono);
+  text-decoration: none;
+}
+.prose .footnotes {
+  margin-top: 3em;
+  padding-top: 1.2em;
+  border-top: var(--rule);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.prose .footnotes li {
+  margin-bottom: 0.7em;
+}
+.prose .footnotes p {
+  margin: 0;
+}
+.prose .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ─── Essay figures ───
+   Diagrams are HTML, not pictures: text reflows at phone width, uses the
+   site fonts, and reads as ordered lists in feed readers, which drop CSS.
+   Ink on moss only: no accent, no status colours (DESIGN.md, Essay figures).
+   Steps are list items; arrows are drawn in the gaps between them. */
+.prose .fig {
+  margin: 2.4em 0;
+}
+.prose .fig ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.prose .fig li,
+.prose .fig p {
+  margin: 0;
+}
+.prose .fig code {
+  background: none;
+  padding: 0;
+  font-size: 0.8em;
+  color: inherit;
+  overflow-wrap: anywhere;
+}
+.prose .fig .fig-node {
+  position: relative;
+  border: var(--rule);
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 10px 12px;
+  font-size: 15px;
+  line-height: 1.4;
+  overflow-wrap: break-word;
+}
+.prose .fig .fig-node strong {
+  font-family: var(--display);
+  font-weight: 700;
+  font-stretch: 80%;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.prose .fig .fig-node--plain {
+  background: transparent;
+}
+.prose .fig .fig-node--ink {
+  background: var(--ink);
+  color: var(--ground);
+}
+.prose .fig .fig-group {
+  position: relative;
+}
+.prose .fig .fig-flow {
+  display: grid;
+  gap: 28px;
+}
+.prose .fig .fig-lanes {
+  display: grid;
+  gap: 10px;
+}
+.prose .fig .fig-flow > li + li::before {
+  content: "";
+  position: absolute;
+  left: 22px;
+  top: -30px;
+  height: 26px;
+  border-left: 2px solid var(--ink);
+}
+.prose .fig .fig-flow > li + li::after {
+  content: "";
+  position: absolute;
+  left: 17px;
+  top: -12px;
+  border-style: solid;
+  border-color: var(--ink) transparent transparent;
+  border-width: 8px 6px 0;
+}
+.prose .fig .fig-edge {
+  position: absolute;
+  left: 34px;
+  top: -24px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--muted);
+}
+/* Short flows (three one-word steps) run left to right once a word fits each step. */
+@media (min-width: 480px) {
+  .prose .fig .fig-flow--row {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    align-items: center;
+    gap: 22px;
+  }
+  .prose .fig .fig-flow--row > li + li::before {
+    left: -24px;
+    top: 50%;
+    width: 18px;
+    height: 0;
+    border-left: 0;
+    border-top: 2px solid var(--ink);
+  }
+  .prose .fig .fig-flow--row > li + li::after {
+    left: -10px;
+    top: calc(50% - 5px);
+    border-color: transparent transparent transparent var(--ink);
+    border-width: 6px 0 6px 8px;
+  }
+}
+.prose .fig .fig-fail {
+  display: block;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 2px dashed currentColor;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.prose .fig .fig-blocked {
+  margin-top: 16px;
+  border: 2px dashed var(--ink);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 15px;
+  line-height: 1.4;
+}
+.prose .fig .fig-rail {
+  margin-top: 16px;
+}
+.prose .fig .fig-rail + .fig-rail {
+  margin-top: 10px;
+}
+.prose .fig .fig-row + .fig-row {
+  margin-top: 22px;
+}
+.prose .fig .fig-row-h {
+  margin-bottom: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.prose .fig .fig-row-n {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.prose .fig--shift .fig-node {
+  padding: 8px;
+  font-size: 13px;
+}
+.prose .fig--shift .fig-node strong {
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+.prose .fig .fig-cols {
+  display: grid;
+  gap: 24px;
+}
+.prose .fig .fig-verdict {
+  margin-top: 20px;
+}
+@media (min-width: 640px) {
+  .prose .fig .fig-cols {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+/* Long flows run left to right once the column is full width. */
+@media (min-width: 800px) {
+  .prose .fig .fig-flow--wide-row {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    align-items: center;
+    gap: 22px;
+  }
+  .prose .fig .fig-flow--wide-row > li + li::before {
+    left: -24px;
+    top: 50%;
+    width: 18px;
+    height: 0;
+    border-left: 0;
+    border-top: 2px solid var(--ink);
+  }
+  .prose .fig .fig-flow--wide-row > li + li::after {
+    left: -10px;
+    top: calc(50% - 5px);
+    border-color: transparent transparent transparent var(--ink);
+    border-width: 6px 0 6px 8px;
+  }
+  .prose .fig .fig-flow--wide-row .fig-edge {
+    left: -24px;
+    top: calc(50% - 16px);
+    width: 22px;
+    font-size: 9px;
+  }
+  .prose .fig .fig-flow--wide-row .fig-edge--stacked {
+    display: none;
+  }
+  .prose .fig--boundary .fig-flow--wide-row {
+    grid-template-columns: 0.8fr 1.45fr 1.1fr 0.8fr;
+  }
+  .prose .fig--boundary .fig-node,
+  .prose .fig--gate .fig-node,
+  .prose .fig--chain .fig-node {
+    font-size: 13px;
+    padding: 8px 9px;
+  }
+  .prose .fig--boundary .fig-node strong,
+  .prose .fig--gate .fig-node strong,
+  .prose .fig--chain .fig-node strong {
+    font-size: 12px;
+    letter-spacing: 0.03em;
+  }
+}
+
 /* ─── Motion: reduced-motion first ─── */
 
