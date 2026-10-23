@@ -9,6 +9,7 @@ export type ShippingProduct =
   | "Vitality Weeks"
   | "Squeeze: The Estimation Duel"
   | "Yonmoku: 3D Four in a Row"
+  | "FirstHand API"
   | "Writing";
 
 export interface ShippingEntry {

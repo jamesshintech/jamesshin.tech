@@ -1,29 +1,37 @@
 import type { Metadata } from "next";
-import { Bodoni_Moda, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Archivo, Martian_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { siteConfig, absoluteUrl } from "@/data/config";
 import "./globals.css";
 
-const display = Bodoni_Moda({
+// Archivo carries two voices through its width axis: 125 for headlines,
+// 80 for labels. Martian Mono sets anything that is a fact. Sentient
+// (Fontshare, ITF Free Font License, self-hosted) is the reading face.
+const archivo = Archivo({
   subsets: ["latin"],
-  weight: ["500"],
-  style: ["normal", "italic"],
+  weight: "variable",
+  axes: ["wdth"],
   display: "swap",
-  variable: "--font-display",
+  variable: "--font-archivo",
   adjustFontFallback: true,
 });
 
-const body = IBM_Plex_Sans({
+const martian = Martian_Mono({
   subsets: ["latin"],
-  weight: ["400", "600"],
+  weight: ["400", "700"],
   display: "swap",
-  variable: "--font-body",
+  variable: "--font-martian",
 });
 
-const mono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["500"],
+const sentient = localFont({
+  src: [
+    { path: "../public/fonts/sentient-400.woff2", weight: "400", style: "normal" },
+    { path: "../public/fonts/sentient-400-italic.woff2", weight: "400", style: "italic" },
+    { path: "../public/fonts/sentient-500.woff2", weight: "500", style: "normal" },
+  ],
   display: "swap",
-  variable: "--font-mono",
+  variable: "--font-sentient",
+  adjustFontFallback: "Times New Roman",
 });
 
 export const metadata: Metadata = {
@@ -66,7 +74,7 @@ const personJsonLd = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
+    <html lang="en" className={`${archivo.variable} ${martian.variable} ${sentient.variable}`}>
       <head>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(personJsonLd) }} />
       </head>

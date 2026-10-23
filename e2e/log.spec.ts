@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 // Keep in sync with e2e/site.spec.ts.
-const BANNED = [/JJ Fisher/i, /jjfisher\.dev/i, /FirstHand/i, /single-family/i, /holding company/i];
+const BANNED = [/JJ Fisher/i, /jjfisher\.dev/i, /single-family/i, /holding company/i];
 const ALLOWED_HOSTS = ["apps.apple.com", "highschooltrends.org", "jamesshin.tech"];
 
 test.describe("shipping log", () => {
@@ -10,10 +10,10 @@ test.describe("shipping log", () => {
     expect(res?.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1 })).toContainText("What shipped");
 
-    const entries = page.locator("ol.log > li");
+    const entries = page.locator("ol.patch > li");
     expect(await entries.count()).toBeGreaterThanOrEqual(5);
     // Every entry carries its source line.
-    expect(await page.locator("ol.log > li .src").count()).toBe(await entries.count());
+    expect(await page.locator("ol.patch > li p.mono").count()).toBe(await entries.count());
 
     const html = await page.content();
     for (const re of BANNED) expect(html, `banned string ${re}`).not.toMatch(re);

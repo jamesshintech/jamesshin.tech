@@ -65,13 +65,15 @@ export default async function PostPage({ params }: Props) {
       <Nav current="writing" />
       <article>
         <header>
-          <div className="wrap">
-            <p className="eyebrow">
-              {post.type}
+          <div className="g">
+            <p className="lab" style={{ margin: 0 }}>
+              Manual insert · {post.type}
               {post.framework ? ` · ${post.framework}` : ""}
             </p>
-            <h1>{post.title}</h1>
-            <p className="line" style={{ fontSize: 18, fontStyle: "italic" }}>
+            <h1 className="disp" style={{ fontSize: "clamp(36px, 5vw, 64px)" }}>
+              {post.title}
+            </h1>
+            <p className="line" style={{ fontStyle: "italic" }}>
               {post.summary}
             </p>
             <p className="meta">
@@ -79,22 +81,26 @@ export default async function PostPage({ params }: Props) {
             </p>
           </div>
         </header>
-        <div className="wrap">
+        <div className="g">
           <div className="prose" dangerouslySetInnerHTML={{ __html: post.html }} />
         </div>
         {(prev || next) && (
-          <nav aria-label="More essays" style={{ borderTop: "1px solid var(--rule)" }}>
-            <div className="wrap" style={{ paddingBlock: 32, display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+          <nav aria-label="More essays" style={{ borderTop: "var(--rule)" }}>
+            <div className="g" style={{ paddingTop: 32, paddingBottom: 32, display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
               {next && (
                 <Link href={`/writing/${next.slug}`} style={{ textDecoration: "none" }}>
                   <span className="meta">← Newer</span>
-                  <h3 style={{ fontSize: 22 }}>{next.title}</h3>
+                  <h3 className="h" style={{ fontSize: 22 }}>
+                    {next.title}
+                  </h3>
                 </Link>
               )}
               {prev && (
                 <Link href={`/writing/${prev.slug}`} style={{ textDecoration: "none" }}>
                   <span className="meta">Older →</span>
-                  <h3 style={{ fontSize: 22 }}>{prev.title}</h3>
+                  <h3 className="h" style={{ fontSize: 22 }}>
+                    {prev.title}
+                  </h3>
                 </Link>
               )}
             </div>

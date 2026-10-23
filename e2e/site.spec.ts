@@ -2,45 +2,61 @@ import { test, expect } from "@playwright/test";
 
 // Strings that must never appear on a public surface again. Keep in sync
 // with the PII guard; this is the deployed-surface check, not the diff check.
-const BANNED = [/JJ Fisher/i, /jjfisher\.dev/i, /FirstHand/i, /single-family/i, /holding company/i];
+const BANNED = [/JJ Fisher/i, /jjfisher\.dev/i, /single-family/i, /holding company/i];
 
 test.describe("home", () => {
-  test("renders the builder page with every project and its receipts", async ({ page }) => {
+  test("renders the box back: hero, spec strip, four titles with loops and receipts", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/James Shin/);
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("I ship the");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("I ship the whole thing");
+    await expect(page.getByText("Players: 1")).toBeVisible();
 
-    // The ledger names every project and links to its chapter; each chapter
-    // leads with a takeaway headline, three receipts and a real frame.
-    const ledger = page.getByRole("list", { name: "Projects on this page" });
-    const chapters: [string, string, RegExp][] = [
-      ["highschooltrends", "HighSchoolTrends.org", /30,000\+/],
-      ["vitality-weeks", "Vitality Weeks", /4,680/],
-      ["squeeze", "Squeeze: The Estimation Duel", /close/],
-      ["yonmoku", "Yonmoku: 3D Four in a Row", /three/],
+    const chapters: [string, string][] = [
+      ["yonmoku", "Yonmoku: 3D Four in a Row"],
+      ["squeeze", "Squeeze: The Estimation Duel"],
+      ["vitality-weeks", "Vitality Weeks"],
+      ["highschooltrends", "HighSchoolTrends.org"],
     ];
-    for (const [slug, name, headline] of chapters) {
-      await expect(ledger.getByRole("link", { name })).toHaveAttribute("href", `#${slug}`);
+    for (const [slug, name] of chapters) {
       const section = page.locator(`section#${slug}`);
-      await expect(section.getByRole("heading", { level: 2 })).toContainText(headline);
-      await expect(section.locator("ul.receipts li")).toHaveCount(3);
+      await expect(section.getByRole("heading", { level: 2 })).toContainText(name);
+      await expect(section.locator("p.fine")).toContainText("Sources:");
       if (slug === "squeeze") {
-        // The Squeeze chapter is a playable round, not a frame.
         await expect(section.getByRole("button", { name: /lock it in/i })).toBeVisible();
       } else {
-        await expect(section.locator("img.frame")).toHaveAttribute("src", /\/frames\/.+\.webp$/);
+        // Every visual is a recording of the real app.
+        const video = section.locator("video");
+        await expect(video).toHaveCount(1);
+        await expect(video.locator("source[type='video/webm']")).toHaveAttribute("src", /\/video\/.+\.webm$/);
+        await expect(video).toHaveAttribute("poster", /\/video\/.+\.webp$/);
       }
     }
-    // The 3D viewer must not load three.js or the model until asked.
-    const scripts = await page.locator("script[src]").evaluateAll((els) => els.map((e) => (e as HTMLScriptElement).src));
-    expect(scripts.some((s) => /three/i.test(s))).toBe(false);
     // Yonmoku is in review, so it must not be labelled live.
-    await expect(ledger).toContainText("In review");
-    await expect(ledger.getByText("Live")).toHaveCount(3);
+    await expect(page.locator("section#yonmoku")).toContainText(/In (App Store )?review/);
+    await expect(page.locator("section#yonmoku p.spec")).not.toContainText(/\bLive\b/);
+
+    // No static product images anywhere.
+    expect(await page.locator("img").count()).toBe(0);
 
     const html = await page.content();
     for (const re of BANNED) expect(html, `banned string ${re}`).not.toMatch(re);
     expect(html).not.toContain("/_vercel/insights");
+  });
+
+  test("three.js is not in the server-rendered page; it arrives only after idle or a click", async ({ request }) => {
+    const html = await (await request.get("/")).text();
+    const srcs = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map((m) => m[1]);
+    expect(srcs.length).toBeGreaterThan(0);
+    expect(srcs.some((s) => /three/i.test(s))).toBe(false);
+    // The three.js bundle is a separate chunk, so it cannot be inlined in the HTML either.
+    expect(html).not.toMatch(/WebGLRenderer/);
+  });
+
+  test("the hero carries the real board's loop and a spin control", async ({ page }) => {
+    await page.goto("/");
+    const key = page.locator("header.hero .viewer");
+    await expect(key.locator("video")).toHaveCount(1);
+    await expect(key.getByRole("button", { name: /spin it/i })).toBeVisible();
   });
 
   test("outbound project links point at the real listings", async ({ page }) => {
@@ -49,6 +65,12 @@ test.describe("home", () => {
     expect(hrefs).toContain("https://apps.apple.com/us/app/squeeze-the-estimation-duel/id6803632348");
     expect(hrefs).toContain("https://apps.apple.com/us/app/vitality-weeks/id6759621537");
     expect(hrefs).toContain("https://highschooltrends.org/");
+  });
+
+  test("manufacturer's notes and patch notes are present", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("ol.notes li")).toHaveCount(6);
+    await expect(page.locator("section#patch ol.patch li")).toHaveCount(5);
   });
 
   test("Person JSON-LD is present and names the owner", async ({ page }) => {

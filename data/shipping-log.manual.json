@@ -1,0 +1,9 @@
+[
+  {
+    "date": "2026-08-22",
+    "product": "FirstHand API",
+    "title": "Retired",
+    "body": "A crowdsourced data-collection API with an iOS capture app and an MCP server. I shut it down, paid everyone who had done work on it, and kept two lessons: measure demand before building supply, and never trust a health check that doesn't open a connection.",
+    "source": "this site; the shutdown is recorded in the product's own repository"
+  }
+]

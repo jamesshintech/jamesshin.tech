@@ -4,7 +4,7 @@ import { siteConfig } from "@/data/config";
 export function Footer() {
   return (
     <footer className="footer">
-      <div className="wrap">
+      <div className="g">
         <span>
           © {new Date().getFullYear()} {siteConfig.name}
         </span>

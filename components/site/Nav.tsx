@@ -6,24 +6,24 @@ type Current = "home" | "writing" | "log" | null;
 export function Nav({ current = null }: { current?: Current }) {
   return (
     <nav className="nav" aria-label="Site">
-      <div className="wrap">
-        <Link href="/" className="brand">
-          {siteConfig.name}
+      <div className="g">
+        <Link href="/" className="brand lab">
+          {siteConfig.name} · Players 1
         </Link>
         <ul>
           <li>
             <Link href="/#work" aria-current={current === "home" ? "page" : undefined}>
-              Work
+              Titles
             </Link>
           </li>
           <li>
             <Link href="/log" aria-current={current === "log" ? "page" : undefined}>
-              Log
+              Patch notes
             </Link>
           </li>
           <li>
             <Link href="/writing" aria-current={current === "writing" ? "page" : undefined}>
-              Writing
+              Manual
             </Link>
           </li>
           <li>

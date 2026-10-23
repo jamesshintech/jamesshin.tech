@@ -6,11 +6,11 @@ import { absoluteUrl, siteConfig } from "@/data/config";
 import { getAllPosts } from "@/lib/writing";
 
 export const metadata: Metadata = {
-  title: "Writing",
+  title: "Manual",
   description: `Essays by ${siteConfig.name}.`,
   alternates: { canonical: absoluteUrl("/writing") },
   openGraph: {
-    title: `Writing — ${siteConfig.name}`,
+    title: `Manual — ${siteConfig.name}`,
     description: `Essays by ${siteConfig.name}.`,
     url: absoluteUrl("/writing"),
   },
@@ -26,18 +26,21 @@ export default function WritingIndex() {
     <div className="reader">
       <Nav current="writing" />
       <header>
-        <div className="wrap">
-          <p className="eyebrow">Writing</p>
-          <h1>Essays</h1>
+        <div className="g">
+          <p className="lab" style={{ margin: 0 }}>
+            Manual insert
+          </p>
+          <h1 className="disp" style={{ fontSize: "clamp(40px, 5.5vw, 72px)" }}>
+            Essays
+          </h1>
           <p className="line">
-            Long-form, with the number, the bet and the counter-argument in every piece.{" "}
-            {posts.length} {posts.length === 1 ? "essay" : "essays"} ·{" "}
-            <Link href="/writing/rss.xml">RSS</Link>
+            Long-form, with the number, the bet and the counter-argument in every piece. {posts.length}{" "}
+            {posts.length === 1 ? "essay" : "essays"} · <Link href="/writing/rss.xml">RSS</Link>
           </p>
         </div>
       </header>
       <main>
-        <div className="wrap" style={{ paddingBottom: 64 }}>
+        <div className="g" style={{ paddingBottom: 64 }}>
           <ul className="archive">
             {posts.map((p) => (
               <li key={p.slug}>
@@ -46,7 +49,7 @@ export default function WritingIndex() {
                     {formatDate(p.date)} · {p.readingMinutes} min read
                     {p.framework ? ` · ${p.framework}` : ""}
                   </span>
-                  <h2>{p.title}</h2>
+                  <h2 className="h">{p.title}</h2>
                   <span className="line">{p.summary}</span>
                 </Link>
               </li>

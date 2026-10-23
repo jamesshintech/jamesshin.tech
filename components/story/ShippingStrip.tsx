@@ -1,28 +1,34 @@
-import Link from "next/link";
 import type { ShippingEntry } from "@/lib/shipping-log";
-import styles from "./ShippingStrip.module.css";
 
-function formatDate(iso: string): string {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-}
-
-/** The latest few shipping-log entries, for the home page. */
-export function ShippingStrip({ entries }: { entries: ShippingEntry[] }) {
+/** Patch-notes rows: mono date, mono product, serif title; newest date in accent. */
+export function PatchNotes({ entries, bodies = false }: { entries: ShippingEntry[]; bodies?: boolean }) {
   if (entries.length === 0) return null;
+  const newest = entries[0]?.date;
   return (
-    <div className={styles.strip}>
-      <ol className={styles.list} aria-label="Latest shipped changes">
-        {entries.map((e) => (
-          <li key={`${e.date}-${e.product}-${e.title}`} className={styles.row}>
-            <span className={styles.date}>{formatDate(e.date)}</span>
-            <span className={styles.product}>{e.product}</span>
-            <span className={styles.title}>{e.title}</span>
-          </li>
-        ))}
-      </ol>
-      <Link href="/log" className={styles.more}>
-        Full log →
-      </Link>
-    </div>
+    <ol className="patch" aria-label="Patch notes">
+      {entries.map((e) => (
+        <li key={`${e.date}-${e.product}-${e.title}`}>
+          <span className={`d${e.date === newest ? " now" : ""}`}>{e.date}</span>
+          <span className="p">
+            {e.product}
+            {e.version ? ` ${e.version}` : ""}
+            {e.ref ? ` #${e.ref}` : ""}
+          </span>
+          <span>
+            <p className="t">
+              {e.url ? (
+                <a href={e.url} target="_blank" rel="noopener noreferrer">
+                  {e.title}
+                </a>
+              ) : (
+                e.title
+              )}
+            </p>
+            {bodies && e.body && <p className="b">{e.body}</p>}
+            {bodies && <p className="b mono" style={{ fontSize: 11, textTransform: "uppercase" }}>§ {e.source}</p>}
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }
