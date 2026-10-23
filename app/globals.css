@@ -278,18 +278,7 @@ h2 em,
   width: min(280px, 100%);
   margin: 0 auto;
 }
-.panel.two-up {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 220px);
-  gap: 18px;
-  align-items: center;
-}
-.panel.two-up .frame.phone {
-  width: 100%;
-}
-.panel.two-up .src {
-  grid-column: 1 / -1;
-}
+
 .panel .lbl {
   font-family: var(--mono);
   font-size: 10.5px;
@@ -630,66 +619,43 @@ h2 em,
   color: var(--ink-soft);
 }
 
-/* ─── Yonmoku board (CSS 3D; geometry constants are set inline) ─── */
-.scene {
-  display: grid;
-  place-items: center;
-  perspective: 900px;
-  overflow: hidden;
-}
-.board3d {
+/* ─── Board viewer: poster + button until the visitor asks for 3D ─── */
+.viewer {
   position: relative;
-  width: 0;
-  height: 0;
-  transform-style: preserve-3d;
-  transform: rotateX(-24deg) rotateY(30deg);
-  animation: turn 48s linear infinite;
+  aspect-ratio: 4 / 3;
+  border-radius: 4px;
+  overflow: hidden;
+  background: radial-gradient(60% 70% at 50% 40%, #e9d9b5, #cdb98a);
 }
-.board3d .base {
-  position: absolute;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #e9d9b5, #cdb98a);
-  transform: rotateX(90deg);
-  box-shadow: 0 0 0 2px #a88d5e, 0 30px 40px -20px rgba(0, 0, 0, 0.6);
-}
-.board3d .peg {
-  position: absolute;
-  left: 0;
-  width: 0;
-  transform-style: preserve-3d;
-}
-.board3d .rod {
-  position: absolute;
-  left: -2.5px;
-  top: 0;
-  width: 5px;
-  height: 100%;
-  border-radius: 3px;
-  background: linear-gradient(90deg, #8a6b3c, #c99a5b, #8a6b3c);
-}
-.board3d .rod.b,
-.board3d .bead .b {
-  transform: rotateY(90deg);
-}
-.board3d .bead {
-  position: absolute;
-  transform-style: preserve-3d;
-}
-.board3d .bead i {
+.viewer-mount {
   position: absolute;
   inset: 0;
-  border-radius: 50%;
 }
-.board3d .bead.dark i {
-  background: radial-gradient(circle at 35% 30%, #5a4536, #2a1f18 60%, #15100c);
+.viewer-mount canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  touch-action: none;
 }
-.board3d .bead.light i {
-  background: radial-gradient(circle at 35% 30%, #fff6e1, #e3cc9d 60%, #b9985f);
+.viewer .viewer-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 62%;
+  margin: 0;
+  border-radius: 0;
 }
-@keyframes turn {
-  to {
-    transform: rotateX(-24deg) rotateY(390deg);
-  }
+.viewer .viewer-btn {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+}
+.viewer[data-state="loading"] .viewer-poster {
+  filter: saturate(0.6) brightness(0.9);
 }
 
 /* ─── Chapter numerals: a huge faint "01" behind each chapter ─── */
@@ -737,20 +703,14 @@ h2 em,
 /* ─── Scroll-driven layer. Only where the browser supports it; the
    timed board rotation and static layout remain the fallback. ─── */
 @supports (animation-timeline: view()) {
-  .panel .frame,
-  .panel .scene {
+  .panel .frame:not(.viewer-poster),
+  .panel .viewer {
     animation: parallax linear both;
     animation-timeline: view();
     animation-range: entry 0% exit 100%;
   }
   .ch .num {
     animation: drift linear both;
-    animation-timeline: view();
-    animation-range: entry 0% exit 100%;
-  }
-  /* The board turns with the scroll instead of on a timer. */
-  .board3d {
-    animation: turn-scroll linear both;
     animation-timeline: view();
     animation-range: entry 0% exit 100%;
   }
@@ -768,14 +728,6 @@ h2 em,
     }
     to {
       transform: translateY(-140px);
-    }
-  }
-  @keyframes turn-scroll {
-    from {
-      transform: rotateX(-24deg) rotateY(-40deg);
-    }
-    to {
-      transform: rotateX(-24deg) rotateY(160deg);
     }
   }
 }
@@ -892,9 +844,7 @@ h2 em,
   .lit .ledger li,
   .lit .receipts li,
   .lit .receipts li::before,
-  .board3d,
   .panel .frame,
-  .panel .scene,
   .ch .num {
     animation: none !important;
   }
@@ -925,9 +875,6 @@ h2 em,
   }
   .ch.flip .text {
     order: 0;
-  }
-  .panel.two-up {
-    grid-template-columns: minmax(0, 1fr);
   }
   .hero .wrap {
     padding-block: 40px 36px;

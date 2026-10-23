@@ -8,6 +8,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const entries: MetadataRoute.Sitemap = [
     { url: absoluteUrl(), lastModified: now, changeFrequency: "monthly", priority: 1 },
     { url: absoluteUrl("/writing"), lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: absoluteUrl("/log"), lastModified: now, changeFrequency: "weekly", priority: 0.6 },
   ];
 
   for (const p of getAllPosts()) {

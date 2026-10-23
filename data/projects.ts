@@ -117,7 +117,7 @@ export const projects: Project[] = [
       height: 1212,
       alt: "Squeeze mid-round: the question Length of the Appalachian Trail in miles, Fox's two-million-mile-wide window, and Shark's choice to squeeze tighter or force.",
     },
-    visualSource: "App Store listing image, US storefront, 2026-10-23",
+    visualSource: "One round of the real mechanic, playable here with 60 of the game's facts. The iOS game has 7,900+",
   },
   {
     slug: "yonmoku",
@@ -141,7 +141,7 @@ export const projects: Project[] = [
       height: 1218,
       alt: "Yonmoku mid-game: a hinoki board with sixteen pegs on a low table on tatami, dark and light beads stacked, the turn label reading Dark to play.",
     },
-    visualSource: "Left: the board as CSS, no library. Right: a frame from the submitted build, 2026-10-12",
+    visualSource: "The board, pegs and beads exported from the game's own Unity project. Click to load it; drag to orbit. Poster: a frame from the submitted build, 2026-10-12",
   },
 ];
 

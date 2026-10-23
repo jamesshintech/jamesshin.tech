@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { siteConfig } from "@/data/config";
 
-type Current = "home" | "writing" | null;
+type Current = "home" | "writing" | "log" | null;
 
 export function Nav({ current = null }: { current?: Current }) {
   return (
@@ -14,6 +14,11 @@ export function Nav({ current = null }: { current?: Current }) {
           <li>
             <Link href="/#work" aria-current={current === "home" ? "page" : undefined}>
               Work
+            </Link>
+          </li>
+          <li>
+            <Link href="/log" aria-current={current === "log" ? "page" : undefined}>
+              Log
             </Link>
           </li>
           <li>

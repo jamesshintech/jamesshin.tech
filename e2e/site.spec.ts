@@ -24,8 +24,16 @@ test.describe("home", () => {
       const section = page.locator(`section#${slug}`);
       await expect(section.getByRole("heading", { level: 2 })).toContainText(headline);
       await expect(section.locator("ul.receipts li")).toHaveCount(3);
-      await expect(section.locator("img.frame")).toHaveAttribute("src", /\/frames\/.+\.webp$/);
+      if (slug === "squeeze") {
+        // The Squeeze chapter is a playable round, not a frame.
+        await expect(section.getByRole("button", { name: /lock it in/i })).toBeVisible();
+      } else {
+        await expect(section.locator("img.frame")).toHaveAttribute("src", /\/frames\/.+\.webp$/);
+      }
     }
+    // The 3D viewer must not load three.js or the model until asked.
+    const scripts = await page.locator("script[src]").evaluateAll((els) => els.map((e) => (e as HTMLScriptElement).src));
+    expect(scripts.some((s) => /three/i.test(s))).toBe(false);
     // Yonmoku is in review, so it must not be labelled live.
     await expect(ledger).toContainText("In review");
     await expect(ledger.getByText("Live")).toHaveCount(3);

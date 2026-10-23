@@ -3,10 +3,14 @@ import Link from "next/link";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
 import { Lit, CountUp, ProgressBar } from "@/components/story/Motion";
-import { Frame, Yonmoku3D } from "@/components/story/Visuals";
+import { Frame } from "@/components/story/Visuals";
+import { BoardViewer } from "@/components/story/BoardViewer";
+import { SqueezeRound } from "@/components/story/SqueezeRound";
 import { siteConfig, absoluteUrl } from "@/data/config";
 import { getProjects, getLiveCount, getInReviewCount, getUniqueSources, type Project } from "@/data/projects";
 import { getLatestPosts } from "@/lib/writing";
+import { getLatestShipping } from "@/lib/shipping-log";
+import { ShippingStrip } from "@/components/story/ShippingStrip";
 
 export const metadata: Metadata = {
   alternates: { canonical: absoluteUrl() },
@@ -36,6 +40,7 @@ export default function Home() {
   const inReview = getInReviewCount();
   const [essay] = getLatestPosts(1);
   const sources = getUniqueSources();
+  const shipping = getLatestShipping(5);
 
   return (
     <>
@@ -107,14 +112,33 @@ export default function Home() {
                   ))}
                 </p>
               </div>
-              <figure className={`panel${p.slug === "yonmoku" ? " two-up" : ""}`}>
-                {p.slug === "yonmoku" && <Yonmoku3D />}
-                <Frame frame={p.frame} phone={p.frame.height > p.frame.width} />
+              <figure className="panel">
+                {p.slug === "yonmoku" ? (
+                  <BoardViewer poster={p.frame} />
+                ) : p.slug === "squeeze" ? (
+                  <SqueezeRound />
+                ) : (
+                  <Frame frame={p.frame} phone={p.frame.height > p.frame.width} />
+                )}
                 <figcaption className="src">{p.visualSource}</figcaption>
               </figure>
             </div>
           </Lit>
         ))}
+
+        <Lit as="section" id="shipping" className="ch" aria-labelledby="shipping-h">
+          <div className="wrap" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
+            <div className="text">
+              <p className="eyebrow rise">Shipping log</p>
+              <h2 id="shipping-h" className="rise d1" style={{ fontSize: "clamp(26px, 3.4vw, 40px)" }}>
+                What shipped lately, with the receipt for each line.
+              </h2>
+              <div className="rise d2">
+                <ShippingStrip entries={shipping} />
+              </div>
+            </div>
+          </div>
+        </Lit>
 
         {essay && (
           <Lit as="section" id="writing" className="band" aria-labelledby="writing-h">
