@@ -5,12 +5,12 @@ import { test, expect } from "@playwright/test";
 const BANNED = [/JJ Fisher/i, /jjfisher\.dev/i, /single-family/i, /holding company/i];
 
 test.describe("home", () => {
-  test("four product rows, each a recording with a one-line description and a link, then the essays", async ({ page }) => {
+  test("a grid of four product tiles, each a recording with a one-liner and a link, then the essays", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/James Shin/);
 
-    const rows = page.locator("ol.rows > li.row");
-    await expect(rows).toHaveCount(4);
+    const tiles = page.locator("ol.tiles > li.tile");
+    await expect(tiles).toHaveCount(4);
     const expected: [string, string, RegExp][] = [
       ["yonmoku", "Yonmoku: 3D Four in a Row", /jjfisherdev\.github\.io/],
       ["squeeze", "Squeeze: The Estimation Duel", /apps\.apple\.com/],
@@ -18,29 +18,28 @@ test.describe("home", () => {
       ["highschooltrends", "HighSchoolTrends.org", /highschooltrends\.org/],
     ];
     for (const [slug, name, host] of expected) {
-      const row = page.locator(`li#${slug}`);
-      await expect(row.getByRole("heading", { level: 2 })).toContainText(name);
-      await expect(row.getByRole("heading", { level: 2 }).getByRole("link")).toHaveAttribute("href", host);
-      await expect(row.locator("p.line")).not.toBeEmpty();
+      const tile = page.locator(`li#${slug}`);
+      await expect(tile.getByRole("heading", { level: 2 })).toHaveText(name);
+      await expect(tile.getByRole("heading", { level: 2 }).getByRole("link")).toHaveAttribute("href", host);
+      await expect(tile.locator("p.tile-line")).not.toBeEmpty();
       // Every visual is a recording of the real app.
-      const video = row.locator("video");
+      const video = tile.locator("video");
       await expect(video).toHaveCount(1);
       await expect(video.locator("source[type='video/webm']")).toHaveAttribute("src", /\/video\/.+\.webm$/);
       await expect(video).toHaveAttribute("poster", /\/video\/.+\.webp$/);
     }
-    await expect(page.locator("li#yonmoku p.meta")).toContainText(/review/i);
-    await expect(page.locator("li#yonmoku p.meta")).not.toContainText(/\bLive\b/);
+    await expect(page.locator("li#yonmoku p.tile-meta")).toContainText(/review/i);
+    await expect(page.locator("li#yonmoku p.tile-meta")).not.toContainText(/\bLive\b/);
 
-    // Concise: no static images, and the whole main column under 160 words.
+    // Concise: no static images, and the whole main column under 120 words.
     expect(await page.locator("img").count()).toBe(0);
     const words = await page.locator("main").evaluate((m) => {
       const clone = m.cloneNode(true) as HTMLElement;
-      clone.querySelectorAll("details").forEach((d) => d.remove());
+      clone.querySelectorAll("dialog").forEach((d) => d.remove());
       return clone.innerText.trim().split(/\s+/).filter(Boolean).length;
     });
-    expect(words).toBeLessThan(160);
+    expect(words).toBeLessThan(120);
 
-    // The essays follow the products.
     await expect(page.locator("section#essays ul.archive li")).toHaveCount(1);
 
     const html = await page.content();
@@ -48,13 +47,27 @@ test.describe("home", () => {
     expect(html).not.toContain("/_vercel/insights");
   });
 
-  test("the Squeeze round is there but folded away", async ({ page }) => {
+  test("the grid uses the width: 4 across on desktop, 2 on phones, no sideways scroll", async ({ browser }) => {
+    for (const [w, cols] of [[1440, 4], [390, 2], [320, 2]] as const) {
+      const ctx = await browser.newContext({ viewport: { width: w, height: 900 } });
+      const p = await ctx.newPage();
+      await p.goto("/");
+      const tops = await p.locator("ol.tiles > li.tile").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+      expect(tops.filter((t) => t === tops[0]).length, `tiles in the first row at ${w}px`).toBe(cols);
+      expect(await p.evaluate(() => document.documentElement.scrollWidth), `scroll width at ${w}px`).toBe(w);
+      await ctx.close();
+    }
+  });
+
+  test("Play a round opens the Squeeze sketch in a dialog and Close dismisses it", async ({ page }) => {
     await page.goto("/");
-    const fold = page.locator("li#squeeze details");
-    await expect(fold).toHaveCount(1);
-    await expect(fold.getByRole("button", { name: /lock it in/i })).toBeHidden();
-    await fold.locator("summary").click();
-    await expect(fold.getByRole("button", { name: /lock it in/i })).toBeVisible();
+    const dialog = page.getByRole("dialog", { name: /play a round of squeeze/i });
+    await expect(dialog).toBeHidden();
+    await page.locator("li#squeeze").getByRole("button", { name: /play a round/i }).click();
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /lock it in/i })).toBeVisible();
+    await dialog.getByRole("button", { name: /close/i }).click();
+    await expect(dialog).toBeHidden();
   });
 
   test("Person JSON-LD is present and names the owner", async ({ page }) => {
