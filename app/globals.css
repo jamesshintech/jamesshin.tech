@@ -283,43 +283,11 @@ summary:focus-visible {
   border-radius: 4px;
 }
 .key video,
-.key img,
-.key canvas {
+.key img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-.key .tag {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--ink);
-  color: var(--ground);
-  padding: 8px 10px;
-  font-family: var(--mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-.key .tag button {
-  background: transparent;
-  border: 0;
-  color: inherit;
-  font: inherit;
-  text-transform: inherit;
-  letter-spacing: inherit;
-  cursor: pointer;
-  padding: 0;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.key .tag button:hover {
-  color: var(--accent);
 }
 .phone {
   border: var(--rule);

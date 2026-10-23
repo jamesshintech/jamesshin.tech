@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
 import { VideoLoop } from "@/components/story/VideoLoop";
-import { BoardViewer } from "@/components/story/BoardViewer";
 import { SqueezeRound } from "@/components/story/SqueezeRound";
 import { absoluteUrl } from "@/data/config";
 import { getProjects } from "@/data/projects";
@@ -30,11 +29,7 @@ export default function Home() {
           {projects.map((p) => (
             <li key={p.slug} id={p.slug} className="row">
               <div className="media">
-                {p.slug === "yonmoku" ? (
-                  <BoardViewer loop={p.loop} auto />
-                ) : (
-                  <VideoLoop loop={p.loop} className={p.loop.width > p.loop.height ? "key" : "phone"} />
-                )}
+                <VideoLoop loop={p.loop} className={p.loop.width > p.loop.height ? "key" : "phone"} />
               </div>
               <div className="text">
                 <h2 className="h">

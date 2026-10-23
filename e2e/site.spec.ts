@@ -57,21 +57,6 @@ test.describe("home", () => {
     await expect(fold.getByRole("button", { name: /lock it in/i })).toBeVisible();
   });
 
-  test("three.js is not in the server-rendered page; it arrives only after idle or a click", async ({ request }) => {
-    const html = await (await request.get("/")).text();
-    const srcs = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map((m) => m[1]);
-    expect(srcs.length).toBeGreaterThan(0);
-    expect(srcs.some((s) => /three/i.test(s))).toBe(false);
-    expect(html).not.toMatch(/WebGLRenderer/);
-  });
-
-  test("the Yonmoku row carries the real board's loop and a spin control", async ({ page }) => {
-    await page.goto("/");
-    const key = page.locator("li#yonmoku .viewer");
-    await expect(key.locator("video")).toHaveCount(1);
-    await expect(key.getByRole("button", { name: /spin it/i })).toBeVisible();
-  });
-
   test("Person JSON-LD is present and names the owner", async ({ page }) => {
     await page.goto("/");
     const ld = await page.locator('script[type="application/ld+json"]').first().textContent();

@@ -93,7 +93,7 @@ components:
 **Creative North Star:** The back of a game box for a one-person studio. A box back is the best one-page persuasion format ever printed for a 30-second decision: key art, hard spec lines, a rating with its sample size, fine print. The owner's one sentence, "one person shipped all of this, end to end", becomes the spec line **PLAYERS: 1**.
 **Product context:** A real-name work sample for employers. Four shipped products (a school-rankings web app, three iOS games/apps, two of them Unity), each with verifiable receipts; a shipping log; one essay. Readers are product and engineering hiring managers who live in Linear, GitHub and the App Store.
 **Mode per surface:** First viewport: Persuade. Chapters, receipts, log, essay: Read. The playable Squeeze round and the 3D board: Experience. No Operate surface.
-**Reference sites:** rauno.me (light ground, cropped type, craft as content), levels.io (receipts in public), raycast.com and linear.app (the near-black "professional software" default this system deliberately avoids), bruno-simon.com (a WebGL-only page shows nothing without a GPU: every 3D moment here has a real fallback), scrolltide.co templates (pinned, scroll-posed objects).
+**Reference sites:** rauno.me (light ground, cropped type, craft as content), levels.io (receipts in public), raycast.com and linear.app (the near-black "professional software" default this system deliberately avoids), bruno-simon.com (a WebGL-only page shows nothing without a GPU), scrolltide.co templates (pinned, scroll-posed objects).
 **Key characteristics:**
 - Pale moss ground, no white anywhere, hard 2px ink rules instead of whitespace or shadows
 - One wide black grotesk voice for headlines and labels, a textured serif for reading, mono for anything that is a fact
@@ -131,7 +131,6 @@ Rectangles. 2px radius on buttons and stamps, 4px on panels, 6px only on the pla
 - **Fine print (receipts):** mono 13px, muted, values in ink bold, source sentence last; one block per product, never a bullet list of stats.
 - **Stamp (PLAYERS: 1):** raspberry fill, ink condensed caps; plays a 120ms scale 1.08→1 once on first intersect.
 - **Video panel:** 2px ink keyline, phone aspect; `<video muted loop playsinline preload="none">` with WebM + MP4 sources and a poster frame from the same recording; plays on intersect, pauses off-screen; under reduced motion the poster frame shows and a Play control appears; a mono provenance line under it (build, date, length).
-- **Key art / board viewer:** the real GLB behind a click or idle load; the Yonmoku loop plays in the frame until then; no-WebGL fallback is the loop itself plus one mono line.
 - **Nav:** sticky, 52px, ink rule below, condensed caps; current page in accent.
 - **Patch notes rows:** mono date, mono product, serif title; newest date in accent.
 
@@ -162,3 +161,4 @@ Rectangles. 2px radius on buttons and stamps, 4px on panels, 6px only on the pla
 | 2026-10-23 | No static product images, ever | Owner's rule: every visual is a recording of the real app or the live model, or there is no visual |
 | 2026-10-23 | Light ground, not near-black | Use scene: warm physical product footage viewed at a desk in daylight; dark grounds exist to flatter UI screenshots, which this site does not show |
 | 2026-10-23 | Home page cut to four rows (recording, the product's own one-liner, link) then the essays | Owner: the box-back copy read as cheesy; the spec strips, receipts, notes and banner duplicated the products. The visual system stands; the content does not argue |
+| 2026-10-23 | Removed the 3D board viewer; Yonmoku shows its gameplay recording like every other row, with no captions | Owner: the loaded model replaced the recording with a still board, so the beads never fell; the frame's captions stated the obvious |
