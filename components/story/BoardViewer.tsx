@@ -180,7 +180,7 @@ export function BoardViewer({ loop, auto = false, scrollPose = false }: { loop: 
   }, [auto]);
 
   return (
-    <div className="key viewer" data-state={state} style={{ aspectRatio: "4 / 3" }}>
+    <div className="key viewer phone" data-state={state} style={{ aspectRatio: `${loop.width} / ${loop.height}` }}>
       <div ref={mountRef} className="viewer-mount" role="img" aria-label="The Yonmoku board. Drag to orbit, scroll or pinch to zoom." />
       {state !== "ready" && (
         <div className="viewer-poster">
@@ -188,7 +188,7 @@ export function BoardViewer({ loop, auto = false, scrollPose = false }: { loop: 
         </div>
       )}
       <div className="tag">
-        <span>Key art · the real board, from the game&apos;s Unity project</span>
+        <span>The real board</span>
         {state === "idle" && (
           <button
             type="button"
@@ -197,12 +197,12 @@ export function BoardViewer({ loop, auto = false, scrollPose = false }: { loop: 
               start();
             }}
           >
-            Spin it ↻
+            Spin it in 3D ↻
           </button>
         )}
         {state === "loading" && <span>Loading the model…</span>}
         {state === "ready" && <span>Drag to orbit</span>}
-        {state === "failed" && <span>3D unavailable here</span>}
+        {state === "failed" && <span>No 3D here</span>}
       </div>
     </div>
   );

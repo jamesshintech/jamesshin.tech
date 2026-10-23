@@ -5,7 +5,7 @@ export function PatchNotes({ entries, bodies = false }: { entries: ShippingEntry
   if (entries.length === 0) return null;
   const newest = entries[0]?.date;
   return (
-    <ol className="patch" aria-label="Patch notes">
+    <ol className="patch" aria-label="Log">
       {entries.map((e) => (
         <li key={`${e.date}-${e.product}-${e.title}`}>
           <span className={`d${e.date === newest ? " now" : ""}`}>{e.date}</span>

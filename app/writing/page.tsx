@@ -6,11 +6,11 @@ import { absoluteUrl, siteConfig } from "@/data/config";
 import { getAllPosts } from "@/lib/writing";
 
 export const metadata: Metadata = {
-  title: "Manual",
+  title: "Writing",
   description: `Essays by ${siteConfig.name}.`,
   alternates: { canonical: absoluteUrl("/writing") },
   openGraph: {
-    title: `Manual — ${siteConfig.name}`,
+    title: `Writing — ${siteConfig.name}`,
     description: `Essays by ${siteConfig.name}.`,
     url: absoluteUrl("/writing"),
   },
@@ -28,7 +28,7 @@ export default function WritingIndex() {
       <header>
         <div className="g">
           <p className="lab" style={{ margin: 0 }}>
-            Manual insert
+            Writing
           </p>
           <h1 className="disp" style={{ fontSize: "clamp(40px, 5.5vw, 72px)" }}>
             Essays

@@ -67,7 +67,7 @@ export default async function PostPage({ params }: Props) {
         <header>
           <div className="g">
             <p className="lab" style={{ margin: 0 }}>
-              Manual insert · {post.type}
+              {post.type}
               {post.framework ? ` · ${post.framework}` : ""}
             </p>
             <h1 className="disp" style={{ fontSize: "clamp(36px, 5vw, 64px)" }}>

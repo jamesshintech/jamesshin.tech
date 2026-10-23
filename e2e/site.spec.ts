@@ -5,42 +5,56 @@ import { test, expect } from "@playwright/test";
 const BANNED = [/JJ Fisher/i, /jjfisher\.dev/i, /single-family/i, /holding company/i];
 
 test.describe("home", () => {
-  test("renders the box back: hero, spec strip, four titles with loops and receipts", async ({ page }) => {
+  test("four product rows, each a recording with a one-line description and a link, then the essays", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/James Shin/);
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("I ship the whole thing");
-    await expect(page.getByText("Players: 1")).toBeVisible();
 
-    const chapters: [string, string][] = [
-      ["yonmoku", "Yonmoku: 3D Four in a Row"],
-      ["squeeze", "Squeeze: The Estimation Duel"],
-      ["vitality-weeks", "Vitality Weeks"],
-      ["highschooltrends", "HighSchoolTrends.org"],
+    const rows = page.locator("ol.rows > li.row");
+    await expect(rows).toHaveCount(4);
+    const expected: [string, string, RegExp][] = [
+      ["yonmoku", "Yonmoku: 3D Four in a Row", /jjfisherdev\.github\.io/],
+      ["squeeze", "Squeeze: The Estimation Duel", /apps\.apple\.com/],
+      ["vitality-weeks", "Vitality Weeks", /apps\.apple\.com/],
+      ["highschooltrends", "HighSchoolTrends.org", /highschooltrends\.org/],
     ];
-    for (const [slug, name] of chapters) {
-      const section = page.locator(`section#${slug}`);
-      await expect(section.getByRole("heading", { level: 2 })).toContainText(name);
-      await expect(section.locator("p.fine")).toContainText("Sources:");
-      if (slug === "squeeze") {
-        await expect(section.getByRole("button", { name: /lock it in/i })).toBeVisible();
-      } else {
-        // Every visual is a recording of the real app.
-        const video = section.locator("video");
-        await expect(video).toHaveCount(1);
-        await expect(video.locator("source[type='video/webm']")).toHaveAttribute("src", /\/video\/.+\.webm$/);
-        await expect(video).toHaveAttribute("poster", /\/video\/.+\.webp$/);
-      }
+    for (const [slug, name, host] of expected) {
+      const row = page.locator(`li#${slug}`);
+      await expect(row.getByRole("heading", { level: 2 })).toContainText(name);
+      await expect(row.getByRole("heading", { level: 2 }).getByRole("link")).toHaveAttribute("href", host);
+      await expect(row.locator("p.line")).not.toBeEmpty();
+      // Every visual is a recording of the real app.
+      const video = row.locator("video");
+      await expect(video).toHaveCount(1);
+      await expect(video.locator("source[type='video/webm']")).toHaveAttribute("src", /\/video\/.+\.webm$/);
+      await expect(video).toHaveAttribute("poster", /\/video\/.+\.webp$/);
     }
-    // Yonmoku is in review, so it must not be labelled live.
-    await expect(page.locator("section#yonmoku")).toContainText(/In (App Store )?review/);
-    await expect(page.locator("section#yonmoku p.spec")).not.toContainText(/\bLive\b/);
+    await expect(page.locator("li#yonmoku p.meta")).toContainText(/review/i);
+    await expect(page.locator("li#yonmoku p.meta")).not.toContainText(/\bLive\b/);
 
-    // No static product images anywhere.
+    // Concise: no static images, and the whole main column under 160 words.
     expect(await page.locator("img").count()).toBe(0);
+    const words = await page.locator("main").evaluate((m) => {
+      const clone = m.cloneNode(true) as HTMLElement;
+      clone.querySelectorAll("details").forEach((d) => d.remove());
+      return clone.innerText.trim().split(/\s+/).filter(Boolean).length;
+    });
+    expect(words).toBeLessThan(160);
+
+    // The essays follow the products.
+    await expect(page.locator("section#essays ul.archive li")).toHaveCount(1);
 
     const html = await page.content();
     for (const re of BANNED) expect(html, `banned string ${re}`).not.toMatch(re);
     expect(html).not.toContain("/_vercel/insights");
+  });
+
+  test("the Squeeze round is there but folded away", async ({ page }) => {
+    await page.goto("/");
+    const fold = page.locator("li#squeeze details");
+    await expect(fold).toHaveCount(1);
+    await expect(fold.getByRole("button", { name: /lock it in/i })).toBeHidden();
+    await fold.locator("summary").click();
+    await expect(fold.getByRole("button", { name: /lock it in/i })).toBeVisible();
   });
 
   test("three.js is not in the server-rendered page; it arrives only after idle or a click", async ({ request }) => {
@@ -48,29 +62,14 @@ test.describe("home", () => {
     const srcs = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map((m) => m[1]);
     expect(srcs.length).toBeGreaterThan(0);
     expect(srcs.some((s) => /three/i.test(s))).toBe(false);
-    // The three.js bundle is a separate chunk, so it cannot be inlined in the HTML either.
     expect(html).not.toMatch(/WebGLRenderer/);
   });
 
-  test("the hero carries the real board's loop and a spin control", async ({ page }) => {
+  test("the Yonmoku row carries the real board's loop and a spin control", async ({ page }) => {
     await page.goto("/");
-    const key = page.locator("header.hero .viewer");
+    const key = page.locator("li#yonmoku .viewer");
     await expect(key.locator("video")).toHaveCount(1);
     await expect(key.getByRole("button", { name: /spin it/i })).toBeVisible();
-  });
-
-  test("outbound project links point at the real listings", async ({ page }) => {
-    await page.goto("/");
-    const hrefs = await page.locator("a.btn").evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).href));
-    expect(hrefs).toContain("https://apps.apple.com/us/app/squeeze-the-estimation-duel/id6803632348");
-    expect(hrefs).toContain("https://apps.apple.com/us/app/vitality-weeks/id6759621537");
-    expect(hrefs).toContain("https://highschooltrends.org/");
-  });
-
-  test("manufacturer's notes and patch notes are present", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator("ol.notes li")).toHaveCount(6);
-    await expect(page.locator("section#patch ol.patch li")).toHaveCount(5);
   });
 
   test("Person JSON-LD is present and names the owner", async ({ page }) => {

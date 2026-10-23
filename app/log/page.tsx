@@ -6,7 +6,7 @@ import { absoluteUrl } from "@/data/config";
 import { getShippingLog, groupByMonth } from "@/lib/shipping-log";
 
 export const metadata: Metadata = {
-  title: "Patch notes",
+  title: "Log",
   description: "Every release note, merged change and essay since the first product, newest first, each with its source.",
   alternates: { canonical: absoluteUrl("/log") },
 };
@@ -20,7 +20,7 @@ export default function LogPage() {
       <header>
         <div className="g">
           <p className="lab" style={{ margin: 0 }}>
-            Patch notes
+            Log
           </p>
           <h1 className="disp" style={{ fontSize: "clamp(40px, 5.5vw, 72px)" }}>
             What shipped, when.
