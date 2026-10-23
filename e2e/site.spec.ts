@@ -70,6 +70,23 @@ test.describe("home", () => {
     await expect(dialog).toBeHidden();
   });
 
+  test("contact is jjhlee92@gmail.com and there is no Log section", async ({ page, request }) => {
+    await page.goto("/");
+    await expect(page.locator("nav a[href^='mailto:']")).toHaveAttribute("href", "mailto:jjhlee92@gmail.com");
+    await expect(page.locator("footer a[href^='mailto:']")).toHaveText("jjhlee92@gmail.com");
+    await expect(page.locator("nav").getByRole("link", { name: /^log$/i })).toHaveCount(0);
+    expect((await request.get("/log")).status()).toBe(404);
+    expect(await (await request.get("/sitemap.xml")).text()).not.toContain("/log");
+  });
+
+  test("the essay quotes without narrating who it quotes", async ({ request }) => {
+    const html = await (await request.get("/writing/2026-w17-the-distribution-moat-in-the-ai-era")).text();
+    expect(html).not.toMatch(/in the words of/i);
+    expect(html).toContain("TL;DR");
+    // Every quotation carries its source as a link.
+    expect((html.match(/— <a href="https:\/\//g) ?? []).length).toBeGreaterThanOrEqual(10);
+  });
+
   test("Person JSON-LD is present and names the owner", async ({ page }) => {
     await page.goto("/");
     const ld = await page.locator('script[type="application/ld+json"]').first().textContent();
@@ -113,7 +130,7 @@ test.describe("writing", () => {
 });
 
 test.describe("retired routes", () => {
-  for (const path of ["/desktop", "/real-estate", "/api/analytics/website", "/api/newsletter/subscribe"]) {
+  for (const path of ["/desktop", "/real-estate", "/log", "/api/analytics/website", "/api/newsletter/subscribe"]) {
     test(`${path} is gone`, async ({ request }) => {
       const res = await request.get(path);
       expect(res.status()).toBe(404);

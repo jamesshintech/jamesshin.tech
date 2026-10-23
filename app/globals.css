@@ -366,54 +366,6 @@ summary:focus-visible {
   transform: translate(-50%, -50%);
 }
 
-/* ─── Patch notes ─── */
-.patch {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.patch li {
-  display: grid;
-  grid-template-columns: 110px 200px minmax(0, 1fr);
-  gap: 20px;
-  padding: 14px 0;
-  border-top: var(--hair);
-}
-.patch .d,
-.patch .p {
-  overflow-wrap: anywhere;
-  font-family: var(--mono);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  padding-top: 4px;
-}
-.patch .d.now {
-  color: var(--accent);
-  font-weight: 700;
-}
-.patch .t {
-  margin: 0;
-}
-.patch .b {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 15px;
-  max-width: 70ch;
-}
-@media (max-width: 860px) {
-  .patch li {
-    grid-template-columns: 90px minmax(0, 1fr);
-  }
-  .patch .p {
-    grid-column: 2;
-  }
-  .patch .t,
-  .patch .b {
-    grid-column: 1 / -1;
-  }
-}
-
 /* ─── Section headers ─── */
 .sec {
   border-top: var(--rule);
@@ -424,25 +376,6 @@ summary:focus-visible {
   padding-bottom: 72px;
   display: grid;
   gap: 24px;
-}
-.sec.inverse {
-  background: var(--ink);
-  color: var(--ground);
-}
-.sec.inverse .fine,
-.sec.inverse .patch .d,
-.sec.inverse .patch .p,
-.sec.inverse .patch .b {
-  color: var(--surface);
-}
-.sec.inverse .patch li,
-.sec.inverse .fine {
-  border-color: var(--muted);
-}
-.sec.inverse .btn {
-  background: var(--ground);
-  color: var(--ink);
-  border-color: var(--ground);
 }
 .split {
   display: grid;

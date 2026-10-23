@@ -3,7 +3,7 @@ export const siteConfig = {
   name: "James Shin",
   // One line, used in <title> suffixes and the OG image.
   role: "Builder",
-  contactEmail: "contact@jamesshin.tech",
+  contactEmail: "jjhlee92@gmail.com",
   socials: {
     // Set once a public showcase repo is pinned.
     github: null as string | null,
