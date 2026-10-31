@@ -141,7 +141,7 @@ test.describe("writing", () => {
       await expect(page.getByRole("heading", { level: 1 })).toContainText(h1);
       const html = await page.content();
       for (const re of BANNED) expect(html, `banned string ${re}`).not.toMatch(re);
-      expect(html).not.toContain("github.com/jjfisherdev/personalwebsite");
+      expect(html).not.toMatch(/github\.com\/(jjfisherdev|jamesshintech)\/personalwebsite/);
     });
   }
 

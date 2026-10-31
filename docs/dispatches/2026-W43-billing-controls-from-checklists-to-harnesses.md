@@ -10,7 +10,7 @@ week: 2026-W43
 
 # Billing Controls: From Checklists to Harnesses
 
-<p class="byline">From 14 years on contract-to-ledger systems.</p>
+<p class="byline">From 13 years on contract-to-ledger systems.</p>
 
 <div class="bluf">
 
@@ -24,7 +24,7 @@ Ben Thompson's reading of Stripe is that its product is an abstraction layer: a 
 
 Agentic billing has the same stack. The agent above reasons. The ledger below records. The tool server between them is the layer closest to the action, so it is where the controls live. Stripe reached the same conclusion for payments: "trust can’t be inferred—it has to be explicitly granted, scoped, and enforced in code."[^1]
 
-The inputs are what need controlling. The invoice is arithmetic on price, credit terms, partner feed, tax code, entity, currency, and order of application. In 14 years I have not seen a billing failure caused by the arithmetic.[^4]
+The inputs are what need controlling. The invoice is arithmetic on price, credit terms, partner feed, tax code, entity, currency, and order of application. In 13 years I have not seen a billing failure caused by the arithmetic.[^4]
 
 ## 2. The control boundary
 
