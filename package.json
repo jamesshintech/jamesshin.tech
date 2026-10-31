@@ -1,7 +1,8 @@
 {
-  "name": "personalwebsite",
+  "name": "jamesshin-tech",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.15.9",
   "scripts": {
     "fonts": "node scripts/fetch-fonts.mjs",
     "dev": "node scripts/fetch-fonts.mjs && next dev",
