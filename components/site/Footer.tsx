@@ -10,7 +10,12 @@ export function Footer() {
         </span>
         <ul>
           <li>
-            <a href={`mailto:${siteConfig.contactEmail}`}>{siteConfig.contactEmail}</a>
+            <a href={`mailto:${siteConfig.contactEmail}`}>Contact me</a>
+          </li>
+          <li>
+            <a href={siteConfig.socials.linkedin} target="_blank" rel="noopener noreferrer">
+              LinkedIn
+            </a>
           </li>
           {siteConfig.socials.github && (
             <li>

@@ -33,9 +33,9 @@ export const projects: Project[] = [
     slug: "yonmoku",
     name: "Yonmoku: 3D Four in a Row",
     tagline: "Four in a row, in three dimensions. Two people, one phone.",
-    status: "in-review",
-    date: "2026-10-19",
-    url: "https://jjfisherdev.github.io/yonmoku-site/",
+    status: "live",
+    date: "2026-10-31",
+    url: "https://apps.apple.com/us/app/yonmoku-3d-four-in-a-row/id6821935069",
     loop: {
       webm: "/video/yonmoku-loop.webm",
       mp4: "/video/yonmoku-loop.mp4",

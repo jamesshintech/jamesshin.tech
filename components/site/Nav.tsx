@@ -21,6 +21,11 @@ export function Nav({ current = null }: { current?: Current }) {
               Writing
             </Link>
           </li>
+          <li className="nav-wide">
+            <a href={siteConfig.socials.linkedin} target="_blank" rel="noopener noreferrer">
+              LinkedIn
+            </a>
+          </li>
           <li>
             <a href={`mailto:${siteConfig.contactEmail}`}>Contact</a>
           </li>

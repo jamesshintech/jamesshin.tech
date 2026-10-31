@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
 import { VideoLoop } from "@/components/story/VideoLoop";
-import { RoundDialog } from "@/components/story/RoundDialog";
 import { absoluteUrl } from "@/data/config";
 import { getProjects } from "@/data/projects";
 import { getAllPosts } from "@/lib/writing";
@@ -51,9 +50,7 @@ export default function Home() {
                 <p className="tile-line">{p.tagline}</p>
                 <p className="tile-meta">
                   {p.status === "live" ? "Live" : "In review"} · {formatDate(p.date)}
-                </p>
-                {p.slug === "squeeze" && <RoundDialog />}
-              </li>
+                </p>              </li>
             ))}
           </ol>
         </section>

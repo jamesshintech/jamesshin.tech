@@ -7,6 +7,7 @@ export const siteConfig = {
   socials: {
     // Set once a public showcase repo is pinned.
     github: null as string | null,
+    linkedin: "https://www.linkedin.com/in/jamesshin2",
   },
   meta: {
     title: "James Shin — Builder",
@@ -15,7 +16,7 @@ export const siteConfig = {
   },
   // The date the numbers on the home page were last checked against their
   // sources. Bump it whenever data/projects.ts changes.
-  numbersAsOf: "2026-10-23",
+  numbersAsOf: "2026-10-31",
 } as const;
 
 export function absoluteUrl(path = "/"): string {

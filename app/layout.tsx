@@ -69,7 +69,7 @@ const personJsonLd = {
   email: `mailto:${siteConfig.contactEmail}`,
   jobTitle: siteConfig.role,
   description: siteConfig.meta.description,
-  sameAs: siteConfig.socials.github ? [siteConfig.socials.github] : [],
+  sameAs: Object.values(siteConfig.socials).filter((url): url is string => Boolean(url)),
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

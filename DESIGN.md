@@ -92,7 +92,7 @@ components:
 
 **Creative North Star:** The back of a game box for a one-person studio. A box back is the best one-page persuasion format ever printed for a 30-second decision: key art, hard spec lines, a rating with its sample size, fine print. The owner's one sentence, "one person shipped all of this, end to end", becomes the spec line **PLAYERS: 1**.
 **Product context:** A real-name work sample for employers. Four shipped products (a school-rankings web app, three iOS games/apps, two of them Unity), each a gameplay recording with its own one-liner and link; then the essays. Readers are product and engineering hiring managers who live in Linear, GitHub and the App Store.
-**Mode per surface:** First viewport: Persuade. Chapters, receipts, log, essay: Read. The playable Squeeze round and the 3D board: Experience. No Operate surface.
+**Mode per surface:** First viewport: Persuade. Chapters, receipts, log, essay: Read. The gameplay recordings: Experience. No Operate surface.
 **Reference sites:** rauno.me (light ground, cropped type, craft as content), levels.io (receipts in public), raycast.com and linear.app (the near-black "professional software" default this system deliberately avoids), bruno-simon.com (a WebGL-only page shows nothing without a GPU), scrolltide.co templates (pinned, scroll-posed objects).
 **Key characteristics:**
 - Pale moss ground, no white anywhere, hard 2px ink rules instead of whitespace or shadows
@@ -105,7 +105,7 @@ components:
 
 **Strategy:** Restrained. One accent, used in exactly three places (the PLAYERS 1 stamp, button hover, the newest patch-note date); everything else is the ink and moss pair.
 **Light or dark:** Light, decided by the use scene: a reader at a desk in daytime looking at warm product footage (hinoki wood, tatami, a bridge at dusk). On near-black those read as ads; on moss they read as objects. Dark mode is not offered.
-Ink `#14170F` on ground `#D9DCCB` is 13:1; muted `#4D5244` passes 4.5:1 on both ground and surface `#C7CBB6`. The accent `#E0497E` only ever carries ink text (4.7:1); white on it fails. Status is text, never color: "Live", "In review". Semantic colors appear only in the playable round's result line.
+Ink `#14170F` on ground `#D9DCCB` is 13:1; muted `#4D5244` passes 4.5:1 on both ground and surface `#C7CBB6`. The accent `#E0497E` only ever carries ink text (4.7:1); white on it fails. Status is text, never color: "Live", "In review". No semantic colors.
 
 ## Typography
 
@@ -121,7 +121,7 @@ None by shadow. Depth is a 2px ink keyline, the surface tone against the ground,
 
 ## Shapes
 
-Rectangles. 2px radius on buttons and stamps, 4px on panels, 6px only on the playable round's sliders. Nested radius = outer radius − gap, which here means inner elements are square.
+Rectangles. 2px radius on buttons and stamps, 4px on panels. Nested radius = outer radius − gap, which here means inner elements are square.
 
 ## Components
 
@@ -168,3 +168,4 @@ Rectangles. 2px radius on buttons and stamps, 4px on panels, 6px only on the pla
 | 2026-10-23 | Essay rewritten in Smart Brevity (TL;DR, Why it matters, Big picture, Between the lines, Yes but, Bottom line), ~650 words, carried by 12 verbatim quotes checked against their sources | Owner request; the check also removed a misattributed Alden quote, a paraphrase that inverted Thompson's April post, a dead link, and unverified macro figures |
 | 2026-10-23 | Second essay, "Billing Controls: From Checklists to Harnesses", ported from the owner's claude.ai artifact with its two diagrams, three tables, bottom-line box and footnotes | Owner request. Dated the day it was written. One quote corrected to the source's exact wording; the footnote on credit-balance incidents cites the two status-page incidents |
 | 2026-10-23 | Essay figures are HTML diagrams in ink and moss, not images or SVG | Owner asked for infographics. HTML text reflows on phones, uses the site fonts, is read by screen readers and survives RSS readers that drop CSS (inline SVG styled by classes renders as black shapes there). Three on the distribution essay, one per argument step |
+| 2026-10-31 | Yonmoku shown live and linked to its App Store listing; LinkedIn in the footer and Person JSON-LD, and in the nav from 480px up; the footer's mailto link reads "Contact me" instead of printing the address; the playable Squeeze round removed | Owner request. Apple released Yonmoku on 2026-10-31. Below 480px the name and four nav links do not fit on one row, so LinkedIn stays in the footer there. The address stays in the mailto link and the Person JSON-LD, which are in the page source |

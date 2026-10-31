@@ -15,7 +15,7 @@ test.describe("home", () => {
     const tiles = page.locator("ol.tiles > li.tile");
     await expect(tiles).toHaveCount(4);
     const expected: [string, string, RegExp][] = [
-      ["yonmoku", "Yonmoku: 3D Four in a Row", /jjfisherdev\.github\.io/],
+      ["yonmoku", "Yonmoku: 3D Four in a Row", /apps\.apple\.com\/us\/app\/yonmoku-3d-four-in-a-row\/id6821935069/],
       ["squeeze", "Squeeze: The Estimation Duel", /apps\.apple\.com/],
       ["vitality-weeks", "Vitality Weeks", /apps\.apple\.com/],
       ["highschooltrends", "HighSchoolTrends.org", /highschooltrends\.org/],
@@ -31,16 +31,13 @@ test.describe("home", () => {
       await expect(video.locator("source[type='video/webm']")).toHaveAttribute("src", /\/video\/.+\.webm$/);
       await expect(video).toHaveAttribute("poster", /\/video\/.+\.webp$/);
     }
-    await expect(page.locator("li#yonmoku p.tile-meta")).toContainText(/review/i);
-    await expect(page.locator("li#yonmoku p.tile-meta")).not.toContainText(/\bLive\b/);
+    // Every product is approved and on sale; none is labelled live before its store says so.
+    for (const meta of await page.locator("p.tile-meta").allTextContents()) expect(meta).toMatch(/^Live · /);
+    await expect(page.locator("li#yonmoku p.tile-meta")).toHaveText("Live · Oct 2026");
 
     // Concise: no static images, and the whole main column under 120 words.
     expect(await page.locator("img").count()).toBe(0);
-    const words = await page.locator("main").evaluate((m) => {
-      const clone = m.cloneNode(true) as HTMLElement;
-      clone.querySelectorAll("dialog").forEach((d) => d.remove());
-      return clone.innerText.trim().split(/\s+/).filter(Boolean).length;
-    });
+    const words = await page.locator("main").evaluate((m) => (m as HTMLElement).innerText.trim().split(/\s+/).filter(Boolean).length);
     expect(words).toBeLessThan(120);
 
     await expect(page.locator("section#essays ul.archive li")).toHaveCount(2);
@@ -62,21 +59,21 @@ test.describe("home", () => {
     }
   });
 
-  test("Play a round opens the Squeeze sketch in a dialog and Close dismisses it", async ({ page }) => {
+  test("the tiles are recordings and links only: no playable round", async ({ page }) => {
     await page.goto("/");
-    const dialog = page.getByRole("dialog", { name: /play a round of squeeze/i });
-    await expect(dialog).toBeHidden();
-    await page.locator("li#squeeze").getByRole("button", { name: /play a round/i }).click();
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("button", { name: /lock it in/i })).toBeVisible();
-    await dialog.getByRole("button", { name: /close/i }).click();
-    await expect(dialog).toBeHidden();
+    await expect(page.locator("main button, main dialog")).toHaveCount(0);
+    await expect(page.getByText(/play a round/i)).toHaveCount(0);
   });
 
-  test("contact is jjhlee92@gmail.com and there is no Log section", async ({ page, request }) => {
-    await page.goto("/");
-    await expect(page.locator("nav a[href^='mailto:']")).toHaveAttribute("href", "mailto:jjhlee92@gmail.com");
-    await expect(page.locator("footer a[href^='mailto:']")).toHaveText("jjhlee92@gmail.com");
+  test("contact links to jjhlee92@gmail.com without printing the address, and there is no Log section", async ({ page, request }) => {
+    for (const path of ["/", "/writing", MOAT]) {
+      await page.goto(path);
+      await expect(page.locator("nav a[href^='mailto:']")).toHaveText("Contact");
+      await expect(page.locator("footer a[href^='mailto:']")).toHaveText("Contact me");
+      for (const a of await page.locator("a[href^='mailto:']").all()) await expect(a).toHaveAttribute("href", "mailto:jjhlee92@gmail.com");
+      // The address is in the link target only, never in visible text.
+      expect(await page.locator("body").innerText(), `${path} visible text`).not.toMatch(/jjhlee92|[\w.+-]+@[\w-]+\.[a-z]{2,}/i);
+    }
     await expect(page.locator("nav").getByRole("link", { name: /^log$/i })).toHaveCount(0);
     expect((await request.get("/log")).status()).toBe(404);
     expect(await (await request.get("/sitemap.xml")).text()).not.toContain("/log");
@@ -90,13 +87,42 @@ test.describe("home", () => {
     expect((html.match(/— <a href="https:\/\//g) ?? []).length).toBeGreaterThanOrEqual(10);
   });
 
-  test("Person JSON-LD is present and names the owner", async ({ page }) => {
+  test("LinkedIn is in the footer at every width and in the nav once it fits; the nav stays one row", async ({ browser }) => {
+    for (const w of [320, 390, 430, 480, 820, 1440]) {
+      const ctx = await browser.newContext({ viewport: { width: w, height: 900 } });
+      const p = await ctx.newPage();
+      await p.goto("/");
+      await p.evaluate(() => document.fonts.ready);
+      for (const where of ["footer", ...(w >= 480 ? ["nav"] : [])]) {
+        const link = p.locator(where).getByRole("link", { name: "LinkedIn" });
+        await expect(link, `${where} at ${w}px`).toBeVisible();
+        await expect(link).toHaveAttribute("href", "https://www.linkedin.com/in/jamesshin2");
+        await expect(link).toHaveAttribute("target", "_blank");
+        await expect(link).toHaveAttribute("rel", /noopener/);
+      }
+      if (w < 480) await expect(p.locator("nav").getByRole("link", { name: "LinkedIn" })).toBeHidden();
+      // One text line per element: the name and every link sit on a single line.
+      const lines = await p.locator(".nav .brand, .nav ul a").evaluateAll((els) =>
+        els.filter((e) => getComputedStyle(e.closest("li") ?? e).display !== "none").map((e) => {
+          const r = document.createRange();
+          r.selectNodeContents(e);
+          return r.getClientRects().length;
+        }),
+      );
+      expect(lines.every((n) => n === 1), `nav lines at ${w}px: ${lines}`).toBe(true);
+      expect(await p.evaluate(() => document.documentElement.scrollWidth), `scroll width at ${w}px`).toBe(w);
+      await ctx.close();
+    }
+  });
+
+  test("Person JSON-LD is present, names the owner and links the profiles", async ({ page }) => {
     await page.goto("/");
     const ld = await page.locator('script[type="application/ld+json"]').first().textContent();
     const json = JSON.parse(ld ?? "{}");
     expect(json["@type"]).toBe("Person");
     expect(json.name).toBe("James Shin");
     expect(json.url).toBe("https://jamesshin.tech/");
+    expect(json.sameAs).toEqual(["https://www.linkedin.com/in/jamesshin2"]);
   });
 });
 
