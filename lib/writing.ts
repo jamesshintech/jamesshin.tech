@@ -5,7 +5,7 @@ import { remark } from "remark";
 import remarkGfm from "remark-gfm";
 import remarkHtml from "remark-html";
 
-const WRITING_DIR = path.join(process.cwd(), "docs", "dispatches");
+const WRITING_DIR = path.join(process.cwd(), "content", "essays");
 
 export type WritingType = "essay" | "dispatch";
 
