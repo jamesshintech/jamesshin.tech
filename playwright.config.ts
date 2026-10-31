@@ -2,8 +2,8 @@ import { defineConfig } from "@playwright/test";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 
-// Load .env.local into the test process so tests have access to secrets
-// (Next.js loads .env.local for the dev server, but not for the Playwright runner)
+// Load .env.local into the test process (Next.js loads it for the server,
+// not for the Playwright runner). Locally it supplies BANNED_PATTERNS.
 try {
   const envFile = resolve(__dirname, ".env.local");
   const content = readFileSync(envFile, "utf8");
@@ -33,9 +33,10 @@ export default defineConfig({
       use: { browserName: "chromium" },
     },
   ],
+  // CI tests the production build (`pnpm build` runs first); locally, dev.
   webServer: {
-    command: "pnpm dev",
+    command: process.env.CI ? "pnpm start" : "pnpm dev",
     port: 3000,
-    reuseExistingServer: true,
+    reuseExistingServer: !process.env.CI,
   },
 });

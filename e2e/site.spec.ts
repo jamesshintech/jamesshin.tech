@@ -1,8 +1,18 @@
 import { test, expect } from "@playwright/test";
 
-// Strings that must never appear on a public surface again. Keep in sync
-// with the PII guard; this is the deployed-surface check, not the diff check.
-const BANNED = [/JJ Fisher/i, /jjfisher\.dev/i, /single-family/i, /holding company/i];
+// Strings that must never appear on a public surface again. The retired brand
+// is listed here; private patterns come from BANNED_PATTERNS (one regex per
+// line, from a CI secret or .env.local) so the list itself is never published.
+// REQUIRE_BANNED_PATTERNS=1 turns a missing secret into a failure.
+const privatePatterns = (process.env.BANNED_PATTERNS ?? "")
+  .split(/\r?\n|\\n/)
+  .map((s) => s.trim())
+  .filter(Boolean)
+  .map((s) => new RegExp(s, "i"));
+if (process.env.REQUIRE_BANNED_PATTERNS === "1" && privatePatterns.length === 0) {
+  throw new Error("BANNED_PATTERNS is empty but REQUIRE_BANNED_PATTERNS=1");
+}
+const BANNED = [/JJ Fisher/i, /jjfisher\.dev/i, /single-family/i, /holding company/i, ...privatePatterns];
 
 const BILLING = "/writing/2026-w43-billing-controls-from-checklists-to-harnesses";
 const MOAT = "/writing/2026-w17-the-distribution-moat-in-the-ai-era";
