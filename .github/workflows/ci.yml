@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "17 6 * * 1" # weekly secret scan, in case rules improve
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,7 +17,8 @@ concurrency:
 
 jobs:
   site:
-    name: Lint, build, typecheck, e2e
+    name: Lint, build, typecheck, tests
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -30,30 +34,31 @@ jobs:
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm exec playwright install --with-deps chromium
-      - name: e2e against the production server
+      # No artifacts are uploaded from this step: it runs with the private
+      # banned patterns, and failures report private matches by index only.
+      - name: Tests (e2e against the production server, plus unit)
         run: pnpm test:e2e
         env:
           CI: "1"
           BANNED_PATTERNS: ${{ secrets.BANNED_PATTERNS }}
           # Pushes to main must run the private patterns; fork PRs have no secrets.
           REQUIRE_BANNED_PATTERNS: ${{ github.event_name == 'push' && '1' || '0' }}
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-report
-          path: |
-            playwright-report/
-            test-results/
-          retention-days: 7
 
   secrets:
-    name: Secret scan (full history)
+    name: Secret scan (every commit)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install gitleaks (pinned, checksum-verified)
+        run: |
+          curl -sSfL -o gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tgz" | sha256sum --check --strict
+          tar -xzf gitleaks.tgz gitleaks
+      - name: Scan the full history
+        run: ./gitleaks git --redact --no-banner --verbose .
