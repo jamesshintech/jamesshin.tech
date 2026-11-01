@@ -39,9 +39,9 @@ export default function Home() {
           <ol className="tiles">
             {projects.map((p) => (
               <li key={p.slug} id={p.slug} className="tile">
-                <a href={p.url} target="_blank" rel="noopener noreferrer" className="tile-media" tabIndex={-1} aria-hidden="true">
-                  <VideoLoop loop={p.loop} className="phone" />
-                </a>
+                <div className="tile-media">
+                  <VideoLoop loop={p.loop} className="phone" href={p.url} />
+                </div>
                 <h2 className="tile-name">
                   <a href={p.url} target="_blank" rel="noopener noreferrer">
                     {breakable(p.name)}
@@ -50,7 +50,8 @@ export default function Home() {
                 <p className="tile-line">{p.tagline}</p>
                 <p className="tile-meta">
                   {p.status === "live" ? "Live" : "In review"} · {formatDate(p.date)}
-                </p>              </li>
+                </p>
+              </li>
             ))}
           </ol>
         </section>

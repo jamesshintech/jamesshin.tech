@@ -23,7 +23,10 @@ export function useReducedMotion(): boolean {
   );
 }
 
-export function VideoLoop({ loop, className = "phone", priority = false }: { loop: Loop; className?: string; priority?: boolean }) {
+// `href` links the recording itself (hidden from assistive tech, which gets the
+// product name link instead). The reduced-motion Play button is a sibling of
+// that link, never inside it, so it stays reachable and never navigates.
+export function VideoLoop({ loop, className = "phone", href }: { loop: Loop; className?: string; href?: string }) {
   const ref = useRef<HTMLVideoElement>(null);
   const reduced = useReducedMotion();
   const [wantsPlay, setWantsPlay] = useState(false);
@@ -48,23 +51,32 @@ export function VideoLoop({ loop, className = "phone", priority = false }: { loo
     return () => io.disconnect();
   }, [reduced, wantsPlay]);
 
+  const video = (
+    <video
+      ref={ref}
+      muted
+      loop
+      playsInline
+      preload="none"
+      poster={loop.poster}
+      width={loop.width}
+      height={loop.height}
+      aria-label={loop.alt}
+    >
+      <source src={loop.webm} type="video/webm" />
+      <source src={loop.mp4} type="video/mp4" />
+    </video>
+  );
+
   return (
     <div className={`loop ${className}`}>
-      <video
-        ref={ref}
-        muted
-        loop
-        playsInline
-        preload={priority ? "auto" : "none"}
-        poster={loop.poster}
-        width={loop.width}
-        height={loop.height}
-        aria-label={loop.alt}
-        autoPlay={!reduced && priority}
-      >
-        <source src={loop.webm} type="video/webm" />
-        <source src={loop.mp4} type="video/mp4" />
-      </video>
+      {href ? (
+        <a href={href} target="_blank" rel="noopener noreferrer" className="loop-link" tabIndex={-1} aria-hidden="true">
+          {video}
+        </a>
+      ) : (
+        video
+      )}
       {reduced && !wantsPlay && (
         <button type="button" className="btn play" onClick={() => setWantsPlay(true)}>
           Play {loop.seconds}s loop

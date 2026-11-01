@@ -328,6 +328,10 @@ summary:focus-visible {
 .loop {
   position: relative;
 }
+.loop-link {
+  display: block;
+  height: 100%;
+}
 .loop .play {
   position: absolute;
   left: 50%;
