@@ -4,11 +4,20 @@ import { test, expect } from "@playwright/test";
 // is listed here; private patterns come from BANNED_PATTERNS (one regex per
 // line, from a CI secret or .env.local) so the list itself is never published.
 // REQUIRE_BANNED_PATTERNS=1 turns a missing secret into a failure.
+// Lines are separated by newlines (CI secret) or a literal "\n" (the one-line
+// .env.local form), so a pattern cannot itself contain the two characters \n.
 const privatePatterns = (process.env.BANNED_PATTERNS ?? "")
   .split(/\r?\n|\\n/)
   .map((s) => s.trim())
   .filter(Boolean)
-  .map((s) => new RegExp(s, "i"));
+  .map((s, i) => {
+    try {
+      return new RegExp(s, "i");
+    } catch {
+      // Never echo the pattern: the error message would print it into CI logs.
+      throw new Error(`BANNED_PATTERNS line ${i + 1} is not a valid regular expression`);
+    }
+  });
 if (process.env.REQUIRE_BANNED_PATTERNS === "1" && privatePatterns.length === 0) {
   throw new Error("BANNED_PATTERNS is empty but REQUIRE_BANNED_PATTERNS=1");
 }
