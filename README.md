@@ -4,26 +4,27 @@
 
 The source of [jamesshin.tech](https://jamesshin.tech): four products I built and shipped alone, each shown by a recording of the real app, then my essays.
 
-Every page is prerendered at build time; only the OG image renders on request. There are no cookies, analytics or client-side tracking, and first-load JavaScript stays at Next.js's own baseline (about 102 kB shared, 106 kB for the home page).
+Every route, including the OG image, is prerendered at build time. There are no cookies, analytics or client-side tracking, and first-load JavaScript stays at Next.js's own baseline (about 102 kB shared, 106 kB for the home page).
 
 ## How it works
 
-- **Next.js 15 App Router.** `/`, `/writing`, each essay, the RSS feed and the sitemap are prerendered; the OG image renders on request.
+- **Next.js 15 App Router, fully static.** `/`, `/writing`, each essay, the RSS feed, the sitemap and the OG image are all built ahead of time.
 - **Essays are Markdown in [`content/essays/`](content/essays).** [`lib/writing.ts`](lib/writing.ts) parses frontmatter with gray-matter and renders with remark and remark-gfm. A small remark plugin wraps every table in a keyboard-focusable region that scrolls sideways, so a wide table never scrolls the page.
 - **Diagrams are HTML, not images.** Each figure is an ordered list styled by the design system. It reflows at 320px, screen readers read it as a list, and RSS readers that drop CSS still get the content. Figures are left out of the reading-time word count.
-- **Products are shown by recordings, never static screenshots.** [`VideoLoop`](components/story/VideoLoop.tsx) plays a WebM/MP4 loop with a poster frame taken from the same recording, and under reduced motion shows the poster with a play button instead of autoplaying.
+- **Products are shown by recordings, never static screenshots.** [`VideoLoop`](components/story/VideoLoop.tsx) plays a WebM/MP4 loop when it scrolls into view, with a poster frame taken from the same recording. Under reduced motion it holds the poster and offers a Play button, which sits outside the recording's link so it is reachable by keyboard and screen reader.
 - **One design system, written down.** [`DESIGN.md`](DESIGN.md) defines the colors, type, spacing and every component, including the essay figure.
 
 ## What the tests guard
 
-[`e2e/site.spec.ts`](e2e/site.spec.ts) runs 19 Playwright checks. In CI they run against the production build (`next start`). They cover:
+29 Playwright tests, run with no retries so a flaky test fails instead of passing on its second try. The 20 in [`e2e/site.spec.ts`](e2e/site.spec.ts) drive a browser; in CI they run against the production build (`next start`). The 9 in [`e2e/writing.unit.spec.ts`](e2e/writing.unit.spec.ts) test the essay pipeline directly. They cover:
 
 - **Layout at real widths.** The product grid is 4 across on desktop and 2 on phones, with no sideways scroll at 320, 390 or 1440px. The nav stays on one row and the name never wraps, from 320 to 1440px.
 - **Essay rendering.** Figures and tables fit at 320, 390, 520, 820 and 1440px. That check forbids mid-word breaks, so a word that does not fit shows up as overflow instead of being silently split.
 - **Content contracts.** The billing essay keeps its publication date, bottom line, both diagrams, three tables and five footnotes. The incident footnote links both status-page incidents, and the Stripe quote matches its source character for character.
-- **What must never ship.** A list of retired-brand strings, plus private patterns supplied by a CI secret so the list itself is never published. Retired routes return 404, and the RSS feed and sitemap use only the current domain.
+- **Behaviour, not just content.** Recordings play when scrolled into view and hold still under reduced motion until asked. The word count leaves figures, code and footnote markers out. Missing frontmatter fails loudly, naming the file. Tables get their scroll region. JSON-LD cannot close its script tag early.
+- **What must never ship.** A list of retired-brand strings, plus private patterns supplied by a CI secret so the list itself is never published. A private match is reported by index only, so a failing run never prints a pattern. Retired routes return 404, and the RSS feed and sitemap use only the current domain.
 
-I break each new check on purpose before trusting it: I re-introduce the bug and confirm the test fails.
+Checks that guard against a past bug were run against that bug first and seen to fail; the reduced-motion test found one on its first run (the Play button sat inside a link hidden from assistive tech).
 
 ## Build
 
@@ -35,16 +36,16 @@ pnpm lint && pnpm typecheck
 pnpm test:e2e
 ```
 
-`dev` and `build` first run [`scripts/fetch-fonts.mjs`](scripts/fetch-fonts.mjs). It downloads the Sentient webfont from Fontshare and checks each file against a pinned SHA-256, so it needs network access the first time.
+`dev` and `build` first run [`scripts/fetch-fonts.mjs`](scripts/fetch-fonts.mjs). It downloads the Sentient webfont from Fontshare into `assets/fonts/` and checks each file against a pinned SHA-256, so it needs network access the first time. Node 20 or later.
 
 ## Notes
 
 - **Built with Claude Code.** Every change goes through the checks above, and each commit message explains the reasoning.
-- **Two dependency mismatches are deliberate.** `eslint-config-next` is on 16.x for its flat-config exports, while `next` is on 15.5. `@types/react` 19 sits alongside React 18. Both build, lint and typecheck clean. Aligning them is a separate change.
+- **One version skew is deliberate.** `eslint-config-next` is on 16.x for its flat-config exports while `next` is on 15.5. The App Router renders with the React build that ships inside Next, which is why `@types/react` is on 19. Moving everything to Next 16 is a separate change.
 
 ## License
 
 - **Code:** [MIT](LICENSE).
 - **Essays** (`content/essays/`): © James Shin, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Quoted material belongs to its authors.
-- **App recordings, app names and icons** (`public/video/`): © James Shin / JJ Fisher LLC, all rights reserved.
+- **App recordings, app names and icons** (`public/video/`): © James Shin, all rights reserved.
 - **Fonts:** Archivo and Martian Mono are under the SIL Open Font License, served through `next/font/google`. Sentient is under the ITF Free Font License, which allows self-hosting but not redistribution. That is why it is fetched at build time and never committed.

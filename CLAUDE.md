@@ -1,5 +1,3 @@
-@AGENTS.md
-
 # jamesshin.tech
 
 A one-page work sample: four shipped products (each a recording of the real
@@ -26,7 +24,8 @@ unapproved app live. Bump `numbersAsOf` in `data/config.ts`.
 ## Adding an essay
 Add `content/essays/YYYY-Www-<slug>.md` with frontmatter `slug, title, date,
 type: essay, summary, draft`. The date is the day it was written; never
-backdate. Every factual claim links to a source a reader can open, and quotes
+backdate. If an essay is substantially rewritten later, add `revised:
+YYYY-MM-DD`; the page and the Article JSON-LD (`dateModified`) show it. Every factual claim links to a source a reader can open, and quotes
 match the source exactly. Diagrams use the HTML figure component in DESIGN.md
 ("Essay figure"), not images or SVG. The e2e suite pins the essay count.
 
