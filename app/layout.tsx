@@ -26,9 +26,9 @@ const martian = Martian_Mono({
 
 const sentient = localFont({
   src: [
-    { path: "../public/fonts/sentient-400.woff2", weight: "400", style: "normal" },
-    { path: "../public/fonts/sentient-400-italic.woff2", weight: "400", style: "italic" },
-    { path: "../public/fonts/sentient-500.woff2", weight: "500", style: "normal" },
+    { path: "../assets/fonts/sentient-400.woff2", weight: "400", style: "normal" },
+    { path: "../assets/fonts/sentient-400-italic.woff2", weight: "400", style: "italic" },
+    { path: "../assets/fonts/sentient-500.woff2", weight: "500", style: "normal" },
   ],
   display: "swap",
   variable: "--font-sentient",

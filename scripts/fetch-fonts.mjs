@@ -3,7 +3,7 @@
 // Sentient is licensed under the ITF Free Font License, which allows a site
 // to self-host the font but not to redistribute the files, so they are not
 // committed. Each build downloads the official files from Fontshare's CSS
-// API into public/fonts/ (git-ignored), where next/font/local picks them up.
+// API into assets/fonts/ (git-ignored), where next/font/local picks them up.
 // The SHA-256 of every file is pinned: if Fontshare ever ships different
 // bytes, the build stops instead of silently changing how the site looks.
 
@@ -12,7 +12,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "fonts");
+const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "assets", "fonts");
 const CSS = "https://api.fontshare.com/v2/css?f[]=sentient@400,401,500&display=swap";
 
 const FILES = [
