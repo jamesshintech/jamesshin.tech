@@ -5,8 +5,7 @@ export const siteConfig = {
   role: "Builder",
   contactEmail: "jjhlee92@gmail.com",
   socials: {
-    // Set once a public showcase repo is pinned.
-    github: null as string | null,
+    github: "https://github.com/jamesshintech" as string | null,
     linkedin: "https://www.linkedin.com/in/jamesshin2",
   },
   meta: {
