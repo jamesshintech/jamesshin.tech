@@ -5,6 +5,7 @@ import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
 import { absoluteUrl, siteConfig } from "@/data/config";
 import { getAllPosts, getAdjacent, getPostBySlug, renderPostHtml } from "@/lib/writing";
+import { jsonLd } from "@/lib/json-ld";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -52,7 +53,7 @@ export default async function PostPage({ params }: Props) {
     headline: post.title,
     description: post.summary,
     datePublished: post.date,
-    dateModified: post.date,
+    dateModified: post.revised ?? post.date,
     author: { "@type": "Person", name: siteConfig.name, url: absoluteUrl() },
     publisher: { "@type": "Person", name: siteConfig.name, url: absoluteUrl() },
     mainEntityOfPage: { "@type": "WebPage", "@id": absoluteUrl(`/writing/${post.slug}`) },
@@ -61,7 +62,7 @@ export default async function PostPage({ params }: Props) {
 
   return (
     <div className="reader">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(articleJsonLd) }} />
       <Nav current="writing" />
       <article>
         <header>
@@ -77,7 +78,8 @@ export default async function PostPage({ params }: Props) {
               {post.summary}
             </p>
             <p className="meta">
-              {formatDate(post.date)} · {post.wordCount.toLocaleString("en-US")} words · {post.readingMinutes} min read
+              {formatDate(post.date)}
+              {post.revised ? ` · revised ${formatDate(post.revised)}` : ""} · {post.wordCount.toLocaleString("en-US")} words · {post.readingMinutes} min read
             </p>
           </div>
         </header>

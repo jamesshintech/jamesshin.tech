@@ -2,6 +2,7 @@
 slug: 2026-w17-the-distribution-moat-in-the-ai-era
 title: "The Distribution Moat in the AI Era"
 date: 2026-04-26
+revised: 2026-10-23
 type: essay
 summary: "AI makes making things nearly free. When supply is cheap, the value moves to whoever owns the relationship with the people who choose."
 draft: false

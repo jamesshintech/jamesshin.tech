@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Archivo, Martian_Mono } from "next/font/google";
 import localFont from "next/font/local";
+import { jsonLd } from "@/lib/json-ld";
 import { siteConfig, absoluteUrl } from "@/data/config";
 import "./globals.css";
 
@@ -76,7 +77,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={`${archivo.variable} ${martian.variable} ${sentient.variable}`}>
       <head>
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(personJsonLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(personJsonLd) }} />
       </head>
       <body>{children}</body>
     </html>
