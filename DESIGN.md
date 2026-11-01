@@ -1,50 +1,46 @@
 ---
 name: jamesshin.tech
-description: The back of a game box for a one-person studio. Pale moss, hard ink rules, wide grotesk headlines, mono fine print, and only real objects on the page.
+description: A story in chapters. The name, one line and two work samples, then one product per screen, each a recording beside its own words. Charcoal ground, cream type, amber only on what marks where you are, one grotesk and one mono, native scrolling.
 colors:
-  primary: "#14170F"
-  on-primary: "#D9DCCB"
-  surface: "#C7CBB6"
-  text: "#14170F"
-  text-muted: "#4D5244"
-  accent: "#E0497E"
-  on-accent: "#14170F"
-  ground: "#D9DCCB"
-  success: "#2E6B3F"
-  warning: "#8A6A12"
-  error: "#A8243A"
+  primary: "#F2EFE6"
+  on-primary: "#1C1C1A"
+  surface: "#27271F"
+  text: "#F2EFE6"
+  text-muted: "rgba(242, 239, 230, 0.70)"
+  accent: "#F2B134"
+  on-accent: "#1C1C1A"
+  ground: "#1C1C1A"
+  rule: "rgba(242, 239, 230, 0.25)"
+  rule-strong: "rgba(242, 239, 230, 0.70)"
 typography:
   display:
-    fontFamily: Archivo
-    fontWeight: 900
-    fontStretch: 125%
-    fontSize: clamp(44px, 7vw, 96px)
-    lineHeight: 0.9
+    fontFamily: Space Grotesk
+    fontWeight: 700
+    fontSize: clamp(52px, 6.5vw, 96px)
+    lineHeight: 1
     letterSpacing: -0.03em
   heading:
-    fontFamily: Archivo
-    fontWeight: 900
-    fontStretch: 125%
-    fontSize: clamp(28px, 3.4vw, 48px)
-    lineHeight: 0.92
-    letterSpacing: -0.03em
-  body:
-    fontFamily: Sentient
-    fontWeight: 400
-    fontSize: 1.125rem
-    lineHeight: 1.55
-  label:
-    fontFamily: Archivo
+    fontFamily: Space Grotesk
     fontWeight: 700
-    fontStretch: 80%
-    fontSize: 0.8125rem
-    letterSpacing: 0.06em
+    fontSize: clamp(28px, 3.4vw, 48px)
+    lineHeight: 1.1
+    letterSpacing: -0.02em
+  body:
+    fontFamily: Space Grotesk
+    fontWeight: 400
+    fontSize: 17px
+    lineHeight: 1.5
+  label:
+    fontFamily: JetBrains Mono
+    fontWeight: 400
+    fontSize: 13px
+    letterSpacing: 0.04em
     textTransform: uppercase
   mono:
-    fontFamily: Martian Mono
+    fontFamily: JetBrains Mono
     fontWeight: 400
-    fontSize: 0.8125rem
-    lineHeight: 1.6
+    fontSize: 13px
+    lineHeight: 1.4
     fontFeature: tnum
 rounded:
   sm: 2px
@@ -60,108 +56,129 @@ spacing:
   2xl: 48px
   3xl: 96px
 components:
-  button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.on-primary}"
-    rounded: "{rounded.sm}"
-  button-primary-hover:
-    backgroundColor: "{colors.accent}"
-    textColor: "{colors.on-accent}"
-  button-secondary:
-    borderColor: "{colors.primary}"
+  button:
+    backgroundColor: transparent
     textColor: "{colors.text}"
+    borderColor: "{colors.rule-strong}"
     rounded: "{rounded.sm}"
-  input:
-    borderColor: "{colors.primary}"
-    rounded: "{rounded.sm}"
+  button-hover:
+    borderColor: "{colors.text}"
+  frame:
+    backgroundColor: "{colors.ground}"
+    borderColor: "{colors.rule}"
+    rounded: "{rounded.lg}"
   card:
     backgroundColor: "{colors.surface}"
-    borderColor: "{colors.primary}"
+    borderColor: "{colors.rule-strong}"
     rounded: "{rounded.md}"
   nav-link:
     textColor: "{colors.text}"
+  nav-link-current:
+    textColor: "{colors.accent}"
 ---
 
 # jamesshin.tech
 
 ## Overview
 
-**Creative North Star:** The back of a game box for a one-person studio. A box back is a one-page format built for a 30-second decision: the real thing in motion, a line saying what it is, fine print. Here that is four recordings of shipped products, each with its own one-line description, then the essays. No pitch around them.
-**Product context:** A real-name work sample for employers. Four shipped products (a school-rankings web app, three iOS games/apps, two of them Unity), each a gameplay recording with its own one-liner and link; then the essays. Readers are product and engineering hiring managers who live in Linear, GitHub and the App Store.
-**Mode per surface:** Product grid: Experience (the recordings carry it). Essays: Read. No Operate surface.
-**Reference sites:** rauno.me (light ground, cropped type, craft as content), levels.io (receipts in public), raycast.com and linear.app (the near-black "professional software" default this system deliberately avoids), bruno-simon.com (a WebGL-only page shows nothing without a GPU), scrolltide.co templates (pinned, scroll-posed objects).
+**Creative North Star:** A story you scroll at your own pace. The first screen is the name, one line of background, two labelled work samples and a contents list, beside a product that is playing. Then each product gets a screen of its own: its recording at full height beside its name, its one-liner and its status, the next one sliding over it as you scroll. The essays close the story.
+**Product context:** A real-name work sample for employers, aimed at billing and finance-systems product roles. Readers are hiring managers and engineers who will inspect the page as closely as the work. The four products are a 3D board game, an estimation duel, a life-in-weeks app and a school-rankings site; the two work samples are an essay on billing controls and a finance-platform proposal.
+**Mode per surface:** Home: Experience (the recordings carry it). Essays: Read. No Operate surface.
+**Reference sites, and what was taken:** React Bits and Magic UI (two of the ground effects are ported from them, by hand, to CSS and Canvas 2D), rauno.me (craft as content), linear.app (the charcoal "software" ground, used here because the recordings are the only colour on the page and read as objects against it). Deliberately avoided: the pale warm-neutral ground, serif body and hairline-only recipe of anthropic.com, which the previous version of this site had drifted into.
 **Key characteristics:**
-- Pale moss ground, no white anywhere, hard 2px ink rules instead of whitespace or shadows
-- One wide black grotesk voice for headlines and labels, a textured serif for reading, mono for anything that is a fact
-- The only images are moving and real: gameplay recorded from the shipped builds
-- Every factual claim links to a source a reader can open
-- Dense like a box back, never cluttered: rules do the separating
+- Charcoal ground, cream type, one amber for the current page and the labels on the two work samples; nothing else is coloured
+- One grotesk for everything that is prose or a heading, one mono for anything that is a fact; no serif anywhere
+- The only images are moving and real: recordings from the shipped builds, each inside a thin cream frame
+- Motion follows the reader's own scroll and nothing else: chapters pin and slide over each other, titles rise and taglines light up as a chapter settles, the beam circles the current frame; nothing follows the pointer and nothing intercepts the wheel
+- 1px rules at 25% cream do all the separating; no shadows, no fills at rest
 
 ## Colors
 
-**Strategy:** Restrained. One accent, and it only ever marks state: the current page in the nav and the hover on links and buttons. It is never a fill at rest, never decoration; everything else is the ink and moss pair.
-**Light or dark:** Light, decided by the use scene: a reader at a desk in daytime looking at warm product footage (hinoki wood, tatami, a bridge at dusk). On near-black those read as ads; on moss they read as objects. Dark mode is not offered.
-Ink `#14170F` on ground `#D9DCCB` is 13:1; muted `#4D5244` passes 4.5:1 on both ground and surface `#C7CBB6`. The accent `#E0497E` only ever carries ink text (4.7:1); white on it fails. Status is text, never color: "Live", "In review". No semantic colors.
+**Strategy:** Restrained. One accent, amber `#F2B134`, and it marks two things: the current page in the nav and the "Work sample" label on the two buttons. It is never a fill at rest. Everything else is cream on charcoal at three opacities: 100% for what is read, 70% for what is supporting, 55% for underlines.
+**Light or dark:** Dark, decided by the recordings: hinoki wood, a pink bridge, a mint grid and a navy ranking page each read as the brightest object on screen against charcoal, and the thin cream frames make them read as objects rather than screenshots. Light mode is not offered.
+Cream `#F2EFE6` on charcoal `#1C1C1A` is 15:1; cream at 70% opacity is 9.9:1; amber `#F2B134` on charcoal is 9.4:1 and only ever carries small caps or a 1px underline. Status is text, never colour: "Live", "In review". No semantic colours.
 
 ## Typography
 
-Archivo (Google Fonts, SIL OFL 1.1, variable weight and width) is the box-back voice: width 125 / weight 900 for headlines, width 80 / weight 700 caps for labels, so one family does two jobs and the page never looks like a font pile. Sentient (Fontshare, ITF Free Font License) reads like an indie manual, not a bank; the license allows self-hosting but not redistribution, so `scripts/fetch-fonts.mjs` downloads the 400, 400 italic and 500 woff2 files into `assets/fonts/` at build and pins their hashes. Martian Mono (Google Fonts, SIL OFL 1.1) sets status lines, dates, captions and sources; its wide letterforms rhyme with Archivo expanded. Scale: 13 / 14 / 18 / 28 / 44 / 96. Display stays at or under 6rem. Fonts load through `next/font` with size-adjusted fallbacks: Next picks them for Archivo and Martian Mono, and Sentient falls back to Times New Roman.
+Space Grotesk (Google Fonts, SIL OFL 1.1; 400, 500, 700) is every heading, every line of prose and every link. JetBrains Mono (Google Fonts, SIL OFL 1.1; 400, 500) sets the index numbers, status lines, dates, column headings and the "Work sample" labels, in caps with 0.04em tracking and tabular numerals. Both load through `next/font/google` with size-adjusted fallbacks; nothing is self-hosted and there is no font fetch at build time. Scale: 13 / 15 / 17 / 20 / 28 / h1 (clamp 52px to 96px; 48px to 64px on phones). The name is the only display-size text on the site.
 
 ## Layout
 
-Max width 1376px, 32px gutters (16px on phones), nothing centered. Home is a grid of phone-shaped product tiles: 4 across on laptops, auto-fitting columns on tablets (more as products are added), 2 across on phones. Each tile is the recording, the product name, its one-line description and a mono status line. The essay list follows. Essays are a single reading column. Sections are divided by full-bleed 2px rules. Nothing may scroll sideways at any width from 320px; the e2e suite checks 320, 390 and 1440px.
+Max width 1280px, 24px gutters (20px on phones), nothing centered. The home page is five chapters inside `main`, each a full-height section (`[data-chapter]`) under the 65px nav:
+
+- **Chapter 0:** a two-column grid. Left: the name, the line, the two work samples side by side, then the Contents list (five rows: four products and the essays, current one in amber) taking the rest of the column. Right: the Yonmoku recording at full chapter height. On the first scroll the intro gives way to Yonmoku's own caption (mark, name, tagline, status) while the recording stays put.
+- **Chapters 1 to 3:** one product each, the recording at about 80% of the viewport height on one side and its copy on the other, sides alternating (right, left, right, left across the four products). Each chapter carries its mark ("02 of 04") at the top and a "Next" link and status line at the foot.
+- **Chapter 4:** the essays as full-width rows, then the footer.
+- **Rail:** fixed on the right edge, 01 to 04 and "Essays", the current one amber; it jumps to a chapter's settled state.
+
+Pinning is `position: sticky` on each chapter plus a bottom margin that holds it, so the next chapter slides over (React Bits ScrollStack's slot geometry). It runs only with JavaScript, motion allowed, and a viewport at least 901px wide and 700px tall (`.js-story`, set before first paint and removed if the engine never starts). Otherwise, and on every phone, the chapters are plain stacked sections with everything visible. On phones each chapter is the recording (60svh) with its mark and status beside it, then the name, tagline and Next link; in chapter 0 the name, line and both work samples come first so they show without scrolling. Nothing may scroll sideways at any width from 320px; the e2e suite checks 320, 390, 768, 1024 and 1440px.
 
 ## Elevation & Depth
 
-None by shadow. Depth is a 2px ink keyline, and the surface tone against the ground. No glow, no blur, no gradients.
+None by shadow. Depth is the 1px cream frame around a recording, 8px of charcoal padding inside it, and the 1px rules. The current chapter's frame alone carries a light that travels its edge. No glow beyond that beam, no blur, no gradients on the ground.
 
 ## Shapes
 
-Rectangles. 2px radius on buttons, 4px on panels. Nested radius = outer radius − gap, which here means inner elements are square.
+Rectangles. 2px radius on buttons and on the recording itself, 6px on the frame around it (nested radius = outer radius minus the 8px gap, rounded to 2px), 4px on essay boxes.
 
 ## Components
 
-- **Button, primary:** ink fill, moss text, Archivo condensed caps 13px, 44px min height; hover raspberry fill with ink text; focus-visible 2px ink outline offset 3px; active no transform; disabled 50% opacity, no hover.
-- **Button, secondary:** 2px ink border, ink text; hover ink fill with moss text.
-- **Intro:** above the products, one Archivo heading with the tagline, "I build things and ship them." (`.h`, max 20ch), one Sentient line of background (the finance-systems years), and an underlined label-style link to the work-sample essay, plus a resume link only when a PDF is configured. No other copy.
-- **Product tile:** the video panel, then the product name (Archivo, links to the product), its one-line description (Sentient) and a mono caps status line, "Live · Mon YYYY" or "In review · Mon YYYY".
-- **Video panel:** 2px ink keyline, phone aspect; `<video muted loop playsinline preload="none">` with WebM + MP4 sources and a poster frame from the same recording; plays on intersect, pauses off-screen; under reduced motion the poster frame shows and a Play control appears.
-- **Nav:** sticky, 52px, ink rule below, condensed caps; current page in accent.
-- **Essay furniture:** a `.byline` in mono caps; a `.bluf` bottom-line box (surface fill, 2px ink keyline, 4px radius); GFM tables, which `lib/writing.ts` wraps in a focusable `.table-scroll` region so a 3- or 4-column table scrolls inside the column on a phone (min-width 480px or 620px) instead of widening the page; GFM footnotes as the source list (muted, 15px, ink rule above, back-arrow kept as text with U+FE0E).
-- **Essay figure:** a diagram built from HTML, never an image or SVG text. `<figure class="fig">` holding an `<ol class="fig-flow">` of `.fig-node` steps (Archivo condensed caps title, then `<br>`-separated lines in Sentient). Arrows are CSS shafts and heads in the gaps. Flows stack vertically by default; `fig-flow--row` runs left to right from 480px (three one-word steps), `fig-flow--wide-row` from 800px (long flows). Nodes come in three weights, which carry meaning the way status text does: `--plain` (ground, outline), default (surface), `--ink` (ink fill, moss text) for the step that matters most. `.fig-lanes` holds alternatives with no arrows between them; `.fig-blocked` and `.fig-fail` are dashed, meaning "does not exist" or "fails back". Ink on moss only, no accent and no status colours. A mono figcaption starting "Figure N." or "Diagram N." says what to take away. Without CSS (feed readers) every figure reads as a titled ordered list. Rules: a figure restates only what the essay or its quotes already say; no word may break or overflow at 320px (e2e enforces it with `overflow-wrap: normal`); use `<wbr>` to break long identifiers; no blank lines inside the figure's HTML, or Markdown ends the block.
+- **Nav:** sticky, 65px, 1px rule below; the name in grotesk 700 top-left, four links at 15px/500 underlined in cream at 55%; the current page in amber with an amber underline. A 2px amber progress line rides its bottom edge on the home page (Magic UI scroll-progress). Below 480px the LinkedIn link lives only in the footer so the name never wraps.
+- **Intro:** the h1 is the name; under it one line of background (`siteConfig.intro`, 20px, cream 70%); under that the work samples.
+- **Work sample card:** border only, 1px cream at 70%, 2px radius. A top row of two mono labels, "Work sample" in amber and the kind on the right ("Essay · 6 min", "PDF, 12 pages"); then the document's title with a chevron on its last word; a PDF prints its provenance note underneath at 55%. Side by side on desktop, stacked on phones.
+- **Contents:** a mono "Contents" label, then one ruled row per chapter: a mono index and the name, the current one amber. It is a `nav` landmark inside chapter 0 and repeats nothing a reader needs elsewhere.
+- **Chapter:** mark ("01 of 04") with a rule running out from it; the product name at chapter-title size linking to the product, a chevron on its last word, rising word by word as the chapter settles (React Bits ScrollReveal "rise"); the tagline lighting word by word (Magic UI text-reveal); the mono status line "Live · Mon YYYY · iOS|Web"; a "Next" link to the following chapter. A covered chapter scales to 95% from its top edge, its copy dims, it becomes `inert` and its recording pauses.
+- **Frame:** the recording in a 1px cream frame with 8px padding, always `VideoLoop` (loads near the viewport, plays in view, pauses out of it, poster and Play control under reduced motion). A long single-word name ("HighSchoolTrends.org") may break before a dot, never mid-word.
+- **Beam:** on the current chapter's frame only. A masked border ring with a 120px gradient square (amber to cream to transparent) riding its edge, 10s a lap, CSS only; stopped under reduced motion.
+- **Grounds:** behind chapter 0, a static 40px grid (SVG pattern at 10% stroke) and a Canvas 2D field of 24 drifting cream threads at 30% (`components/home/Threads.tsx`), both faded toward the bottom. The threads pause off screen, in hidden tabs and once chapter 0 is covered, cap the device pixel ratio at 1.5, and draw one still frame under reduced motion.
+- **Rail:** mono numbers with a dot each, fixed to the right edge on pinned desktops, current one amber with `aria-current="location"`; it comes right after the nav in tab order.
+- **Essay rows:** a mono index, the title large with a chevron, the mono date and reading time right-aligned (stacked on phones).
+- **Footer:** 1px rule above, copyright at 70%, the four links underlined; 44px tap targets.
+- **Reading pages:** the same tokens on the essay body. Headings in grotesk 700; the byline, column headings and figcaptions in mono caps; the `.bluf` bottom-line box on surface `#27271F` with a 1px 70% border; tables ruled at 25%; footnotes at 70%.
+- **Essay figure:** a diagram built from HTML, never an image or SVG text. `<figure class="fig">` holding an `<ol class="fig-flow">` of `.fig-node` steps (mono caps title, then `<br>`-separated lines). Arrows are CSS shafts and heads in the gaps. Flows stack vertically by default; `fig-flow--row` runs left to right from 480px, `fig-flow--wide-row` from 800px. Node weights carry meaning: `--plain` (ground, 25% outline), default (surface, 70% outline), `--ink` (cream fill, charcoal text) for the step that matters most. `.fig-lanes` holds alternatives with no arrows; `.fig-blocked` and `.fig-fail` are dashed. Cream on charcoal only, no accent. A mono figcaption starting "Figure N." or "Diagram N." says what to take away. Without CSS every figure reads as a titled ordered list. No word may break or overflow at 320px (e2e enforces it); use `<wbr>` to break long identifiers; no blank lines inside the figure's HTML.
 
 ## Do's and Don'ts
 
 - Do: give every number a printed source and, for ratings, the count.
-- Do: show only moving, real material: recorded gameplay from the shipped build. No static product images, no AI imagery, no stock.
+- Do: show only moving, real material: recordings from the shipped builds. No static product images, no AI imagery, no stock.
 - Do: label unapproved builds "In review"; change the label when Apple does.
-- Do: keep the first viewport readable with JavaScript off and without a GPU.
-- Do: separate with rules; nest nothing.
-- Don't: use white, gradients, glow, drop shadows, pills, icon tiles, kickers above headings or centered blocks.
-- Don't: reuse HighSchoolTrends' lapis/parchment/gold or Bodoni; this site is not HST.
-- Don't: add a timeline, an About, a Skills list or a testimonial row.
-- Don't: use the accent for anything but state (current page, hover).
+- Do: label a work sample for what it is. A take-home says it was a take-home and where its facts came from.
+- Do: keep the first viewport readable with JavaScript off and under reduced motion: the entrance is CSS, the reveals only hide once JavaScript runs, the canvas is decoration.
+- Do: port an effect from its source with its real geometry, timing and easing, and name the source in the CSS comment.
+- Don't: add a cursor effect, a magnet, a spotlight, a progress bar, particles or anything that follows the pointer. The site tried them and cut them.
+- Don't: use white, gradients on the ground, glass, glow beyond the beam, shadows, pills or emoji.
+- Don't: use a serif, or the pale warm-neutral ground this site used to have.
+- Don't: add a timeline, an About, a Skills list, a testimonial row or a resume link.
+- Don't: use the accent for anything but the current page and the work-sample labels.
 - Don't: ship a tile whose visual is a screenshot. Capture a loop or ship no visual.
 
 ## Motion
 
-- **Approach:** intentional, reduced-motion first; everything below is additive.
-- **Easing:** enter(ease-out) exit(ease-in) move(ease-in-out)
-- **Duration:** micro(50-100ms) short(150-250ms) medium(250-400ms) long(400-700ms)
-- **The motion is the recordings.** Videos play when they scroll into view and pause when they leave; links get a 160ms printed underline on hover. No authored scroll moments, no fades, no staggers, no parallax, no scroll-jacking.
+- **Approach:** the reader's scroll drives it. Reduced motion first; everything below is additive and has a static state. Native scrolling only: nothing intercepts the wheel, keys or touch.
+- **Easing:** `cubic-bezier(0.215, 0.61, 0.355, 1)` (power3.out) for the load entrance; cubic ease-out for scrubbed values; linear for the beam.
+- **Entrance (load):** the name rises by character (0.8s, 30ms apart) and the line by word (0.8s, 20ms apart, from 0.15s), clipped to their line boxes, in CSS; the samples, recording and Contents follow at 0.3 to 0.6s. Settled by about 1.2s.
+- **Scroll (pinned desktops):** one passive listener and one rAF in `components/home/ScrollStory.tsx`, offsets measured on resize only, writes only when a value changes. It drives the chapter 0 intro-to-caption swap, the covered chapter's scale and dim, title rise, tagline lighting, the progress line, the rail and Contents marks, and `inert` on covered chapters. Rail, Contents and Next links land on a chapter's settled state; tabbing into a chapter scrolls it to that state.
+- **Ambient:** the threads drift at 0.3 speed behind chapter 0; the beam laps the current frame in 10s.
+- **Hover:** frame border brightens to 70% in 160ms; links underline. Nothing moves.
+- **Recordings:** play when they scroll into view and pause when they leave or are covered; under reduced motion the poster frame shows with a Play control.
+- **Off:** without JavaScript, under reduced motion, below 901px wide or 700px tall: no pins, no scrubbing, chapters stacked, every word visible.
 
 ## Decisions Log
 | Date | Decision | Rationale |
 |------|----------|-----------|
 | 2026-10-23 | Initial design system created | /design-consultation: research of rauno.me, levels.io, raycast.com, linear.app, bruno-simon.com; independent Claude proposal ("Players: 1") adopted over the author's "bench" draft; Codex voice unavailable (not installed); fonts verified against Google Fonts and Fontshare; contrast checked |
 | 2026-10-23 | No static product images, ever | Owner's rule: every visual is a recording of the real app or the live model, or there is no visual |
-| 2026-10-23 | Light ground, not near-black | Use scene: warm physical product footage viewed at a desk in daylight; dark grounds exist to flatter UI screenshots, which this site does not show |
+| 2026-10-23 | Light ground, not near-black | Use scene: warm physical product footage viewed at a desk in daylight; dark grounds exist to flatter UI screenshots, which this site does not show. Reversed 2026-11-01, below |
 | 2026-10-23 | Home page cut to four rows (recording, the product's own one-liner, link) then the essays | Owner: the box-back copy read as cheesy; the spec strips, receipts, notes and banner duplicated the products. The visual system stands; the content does not argue |
 | 2026-10-23 | Removed the 3D board viewer; Yonmoku shows its gameplay recording like every other row, with no captions | Owner: the loaded model replaced the recording with a still board, so the beads never fell; the frame's captions stated the obvious |
-| 2026-10-23 | Products as an auto-fitting grid of phone tiles (4 across on laptop and tablet, 2 on phones, more columns as products are added); HighSchoolTrends re-recorded on a phone viewport so every tile shares one shape; Squeeze round in a dialog | Owner: the one-product-per-row list wasted the horizontal space |
-| 2026-10-23 | Essay rewritten in Smart Brevity (TL;DR, Why it matters, Big picture, Between the lines, Yes but, Bottom line), ~650 words, carried by 12 verbatim quotes checked against their sources | Owner request; the check also removed a misattributed Alden quote, a paraphrase that inverted Thompson's April post, a dead link, and unverified macro figures |
+| 2026-10-23 | Products as an auto-fitting grid of phone tiles; HighSchoolTrends re-recorded on a phone viewport so every tile shares one shape; Squeeze round in a dialog | Owner: the one-product-per-row list wasted the horizontal space |
+| 2026-10-23 | Essay rewritten in Smart Brevity, ~650 words, carried by 12 verbatim quotes checked against their sources | Owner request; the check also removed a misattributed Alden quote, a paraphrase that inverted Thompson's April post, a dead link, and unverified macro figures |
 | 2026-10-23 | Second essay, "Billing Controls: From Checklists to Harnesses", ported from the owner's claude.ai artifact with its two diagrams, three tables, bottom-line box and footnotes | Owner request. Dated the day it was written. One quote corrected to the source's exact wording; the footnote on credit-balance incidents cites the two status-page incidents |
-| 2026-10-23 | Essay figures are HTML diagrams in ink and moss, not images or SVG | Owner asked for infographics. HTML text reflows on phones, uses the site fonts, is read by screen readers and survives RSS readers that drop CSS (inline SVG styled by classes renders as black shapes there). Three on the distribution essay, one per argument step |
-| 2026-10-31 | Yonmoku shown live and linked to its App Store listing; LinkedIn in the footer and Person JSON-LD, and in the nav from 480px up; the footer's mailto link reads "Contact me" instead of printing the address; the playable Squeeze round removed | Owner request. Apple released Yonmoku on 2026-10-31. Below 480px the name and four nav links do not fit on one row, so LinkedIn stays in the footer there. The address stays in the mailto link and the Person JSON-LD, which are in the page source |
-| 2026-11-01 | Intro above the products: the role, one line of background, a link to the billing essay as the work sample | Two independent reviewer passes found a recruiter could not tell who this was or what role the owner wanted. The owner targets billing and finance-systems product roles; the billing essay was edited for a cold reader |
-| 2026-11-01 | Intro heading, GitHub bio, meta description and OG headline become one general line: "I build things and ship them." The finance-systems background stays in the line below | The owner rejected a job-title heading and three narrower taglines: keep it general, about building. "Alone" read as solo by preference to a hiring panel |
+| 2026-10-23 | Essay figures are HTML diagrams, not images or SVG | Owner asked for infographics. HTML text reflows on phones, uses the site fonts, is read by screen readers and survives RSS readers that drop CSS |
+| 2026-10-31 | Yonmoku shown live and linked to its App Store listing; LinkedIn in the footer and Person JSON-LD, and in the nav from 480px up; the footer's mailto link reads "Contact me"; the playable Squeeze round removed | Owner request. Apple released Yonmoku on 2026-10-31. Below 480px the name and four nav links do not fit on one row |
+| 2026-11-01 | Intro above the products: the role, one line of background, a link to the billing essay as the work sample | Two independent reviewer passes found a recruiter could not tell who this was or what role the owner wanted |
+| 2026-11-01 | Intro heading, GitHub bio, meta description and OG headline became one general line, "I build things and ship them." | The owner rejected a job-title heading and three narrower taglines. Superseded the same day, below |
+| 2026-11-01 | Redesign: charcoal, cream and amber; Space Grotesk and JetBrains Mono; the hero is the name beside the Yonmoku recording with a beam on its frame, a 6/3/3 strip below; threads and a grid behind the hero; a one-time rise on load. The moss, Archivo, Sentient, Martian Mono and the accent-for-state rule are gone | The owner judged the previous page an Anthropic look-alike (pale warm neutral, serif body under a grotesk, hairlines). /design-shotgun built three real-HTML directions with the real recordings (Box back, Hero, Ledger), then motion versions of each; the owner chose Hero, then asked for less gimmick. A pointer-following cursor, nav magnet, tile spotlight and scroll-progress bar were built, seen and cut. First-load JS for the home page rose from 106 kB to 108 kB |
+| 2026-11-01 | The h1 is the name, not a tagline; the line under it ends "On the side, I build games and small apps." | The owner: a maker slogan over a 3D board game read as a developer slogan over a toy. The name needs no defending; the line says what the products are without claiming they are the career |
+| 2026-11-01 | A second work sample: the Finance Data Studio proposal as a 12-page PDF, labelled "Written for an enterprise-architect interview at Reddit, September 2026, from public information." | It is the most relevant document the owner has for finance-systems roles. The label says what it is so the Reddit name on its cover does not imply client work; the owner confirmed nothing in it came from interview conversations and no one asked for it to stay private |
+| 2026-11-01 | Home as a scroll story: chapter 0 (name, line, two work samples, Contents, Yonmoku pinned), one pinned chapter per product with sides alternating, the essays chapter, a right-edge rail; a native-scroll engine of one listener and one rAF; no pins on phones, without JavaScript or under reduced motion. Supersedes the Hero layout above (palette, type and work samples kept) | The owner asked for the space to be used much better and for the page to be fun by the eight kinds of fun (Hunicke, LeBlanc and Zubek, MDA, 2004). Round 3 built four real-HTML directions with a measured target of 60% first-screen coverage on desktop and 65% on phones (the Hero build measured about 45%): a denser Hero, Play to reveal, Scroll story and The desk. The owner chose Scroll story: 71% at 1440x900 and 67% at 390x844, recordings at their largest, its fun (Narrative, Sensation, Submission) never between a reader and the products. First-load JS for the home page is 110 kB |

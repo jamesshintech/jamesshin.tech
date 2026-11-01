@@ -31,7 +31,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      # Build first: it fetches the fonts and generates next-env.d.ts.
+      # Build first: it generates next-env.d.ts, which typecheck needs.
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm exec playwright install --with-deps chromium

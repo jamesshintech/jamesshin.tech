@@ -38,12 +38,13 @@ const BILLING = "/writing/2026-w43-billing-controls-from-checklists-to-harnesses
 const MOAT = "/writing/2026-w17-the-distribution-moat-in-the-ai-era";
 
 test.describe("home", () => {
-  test("a grid of four product tiles, each a recording with a one-liner and a link, then the essays", async ({ page }) => {
+  test("four products, each a recording with a one-liner and a link, one chapter each, then the essays", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/James Shin/);
 
-    const tiles = page.locator("ol.tiles > li.tile");
-    await expect(tiles).toHaveCount(4);
+    // One chapter per product; the first also carries the name and the work samples.
+    await expect(page.locator("main section[data-chapter]")).toHaveCount(4);
+    await expect(page.locator("main video")).toHaveCount(4);
     const expected: [string, string, RegExp][] = [
       ["yonmoku", "Yonmoku: 3D Four in a Row", /apps\.apple\.com\/us\/app\/yonmoku-3d-four-in-a-row\/id6821935069/],
       ["squeeze", "Squeeze: The Estimation Duel", /apps\.apple\.com/],
@@ -51,7 +52,7 @@ test.describe("home", () => {
       ["highschooltrends", "HighSchoolTrends.org", /highschooltrends\.org/],
     ];
     for (const [slug, name, host] of expected) {
-      const tile = page.locator(`li#${slug}`);
+      const tile = page.locator(`#${slug}`);
       await expect(tile.getByRole("heading", { level: 2 })).toHaveText(name);
       await expect(tile.getByRole("heading", { level: 2 }).getByRole("link")).toHaveAttribute("href", host);
       await expect(tile.locator("p.tile-line")).not.toBeEmpty();
@@ -63,28 +64,39 @@ test.describe("home", () => {
     }
     // Every product is approved and on sale; none is labelled live before its store says so.
     for (const meta of await page.locator("p.tile-meta").allTextContents()) expect(meta).toMatch(/^Live · /);
-    await expect(page.locator("li#yonmoku p.tile-meta")).toHaveText("Live · Oct 2026");
+    await expect(page.locator("#yonmoku p.tile-meta")).toHaveText("Live · Oct 2026 · iOS");
 
-    // Concise: no static images, and the whole main column (intro, products,
-    // essay list) under 140 words. The budget keeps pitch copy off the page.
+    // Concise: no static images, and the whole main column (name, one line,
+    // two labelled work samples with the PDF's provenance note, four products,
+    // the essay list) under 220 words. The budget keeps pitch copy off the page.
     expect(await page.locator("img").count()).toBe(0);
     const words = await page.locator("main").evaluate((m) => (m as HTMLElement).innerText.trim().split(/\s+/).filter(Boolean).length);
-    expect(words).toBeLessThan(140);
+    expect(words).toBeLessThan(220);
 
-    await expect(page.locator("section#essays ul.archive li")).toHaveCount(2);
+    await expect(page.locator(".essays li.essay")).toHaveCount(2);
 
     const html = await page.content();
     expectClean(html, "home");
     expect(html).not.toContain("/_vercel/insights");
   });
 
-  test("the grid uses the width: 4 across on desktop, 2 on phones, no sideways scroll", async ({ browser }) => {
-    for (const [w, cols] of [[1440, 4], [390, 2], [320, 2]] as const) {
+  test("the layout uses the width: each recording sits beside its copy on desktop, sides alternating, and above it on phones; never a sideways scroll", async ({ browser }) => {
+    for (const w of [1440, 1024, 768, 390, 320]) {
       const ctx = await browser.newContext({ viewport: { width: w, height: 900 } });
       const p = await ctx.newPage();
       await p.goto("/");
-      const tops = await p.locator("ol.tiles > li.tile").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
-      expect(tops.filter((t) => t === tops[0]).length, `tiles in the first row at ${w}px`).toBe(cols);
+      const sides: string[] = [];
+      for (const slug of ["yonmoku", "squeeze", "vitality-weeks", "highschooltrends"]) {
+        // Document order: the frame, then the product's name.
+        const [frame, name] = await p.locator(`#${slug} .frame, #${slug} h2`).evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
+        if (w >= 901) {
+          expect(frame.left >= name.right || frame.right <= name.left, `${slug} frame beside its copy at ${w}px`).toBe(true);
+          sides.push(frame.left > name.left ? "right" : "left");
+        } else {
+          expect(frame.bottom, `${slug} frame above its name at ${w}px`).toBeLessThanOrEqual(name.top);
+        }
+      }
+      if (w >= 901) expect(sides, `recording sides at ${w}px`).toEqual(["right", "left", "right", "left"]);
       expect(await p.evaluate(() => document.documentElement.scrollWidth), `scroll width at ${w}px`).toBe(w);
       await ctx.close();
     }
@@ -110,14 +122,70 @@ test.describe("home", () => {
     expect(await (await request.get("/sitemap.xml")).text()).not.toContain("/log");
   });
 
-  test("an intro says who this is and their background, and offers the work sample", async ({ page }) => {
+  test("the hero is the name, one line of background, and two labelled work samples", async ({ page, request }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("I build things and ship them.");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("James Shin");
     await expect(page.locator(".intro-line")).toContainText("13 years in finance systems");
-    const sample = page.locator(".intro-links").getByRole("link", { name: /^Work sample: Billing Controls/ });
-    await expect(sample).toHaveAttribute("href", BILLING);
-    // No resume link until a real PDF is configured; never a dead link.
+    await expect(page.locator(".intro-line")).toContainText("On the side, I build games and small apps.");
+    const samples = page.locator(".samples a.btn");
+    await expect(samples).toHaveCount(2);
+    await expect(samples.nth(0)).toHaveAttribute("href", BILLING);
+    await expect(samples.nth(0)).toContainText("Billing Controls: From Checklists to Harnesses");
+    // The proposal is a real file, labelled for what it is: a take-home for an
+    // interview, built from public information. Never presented as client work.
+    await expect(samples.nth(1)).toHaveAttribute("href", "/work/finance-data-studio.pdf");
+    await expect(samples.nth(1)).toContainText("Finance Data Studio");
+    await expect(samples.nth(1)).toContainText("PDF, 12 pages");
+    await expect(page.locator(".sample-note")).toHaveText("Written for an enterprise-architect interview at Reddit, September 2026, from public information.");
+    const pdf = await request.get("/work/finance-data-studio.pdf");
+    expect(pdf.status()).toBe(200);
+    expect(pdf.headers()["content-type"]).toContain("application/pdf");
+    expect((await pdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
+    // On a phone both samples sit above the first recording, so a recruiter
+    // reaches them without scrolling past a full-height video.
+    const phone = await page.context().browser()!.newContext({ viewport: { width: 390, height: 844 } });
+    const pp = await phone.newPage();
+    await pp.goto("/");
+    const [lastSample, firstFrame] = await pp.locator(".samples li:last-child, #yonmoku .frame").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
+    expect(lastSample.bottom, "samples above the first recording on a phone").toBeLessThanOrEqual(firstFrame.top);
+    await phone.close();
+    // No resume on the site, by choice; never a dead link.
     await expect(page.getByRole("link", { name: /resume/i })).toHaveCount(0);
+  });
+
+  test("the entrance settles within two seconds, and under reduced motion nothing is hidden or moving", async ({ browser }) => {
+    const moving = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const p = await moving.newPage();
+    await p.goto("/");
+    await p.waitForTimeout(2000);
+    const settled = await p.locator(".rise-c, .rise-w").evaluateAll((els) =>
+      // A finished `transform: none` keyframe computes to the identity matrix.
+      els.every((e) => getComputedStyle(e).opacity === "1" && /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/.test(getComputedStyle(e).transform)),
+    );
+    expect(settled, "every risen piece is at rest").toBe(true);
+    await expect(p.locator("canvas.threads")).toHaveCount(1);
+    await expect(p.locator("[data-reveal]").first()).toHaveAttribute("data-reveal", "shown");
+    await moving.close();
+
+    const still = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+    const q = await still.newPage();
+    await q.goto("/");
+    const quiet = await q.evaluate(() => {
+      const h1 = document.querySelector("h1")!;
+      const piece = document.querySelector(".rise-c")!;
+      const beam = document.querySelector(".beam")!;
+      return {
+        h1: getComputedStyle(h1).opacity,
+        piece: getComputedStyle(piece).animationName,
+        beam: getComputedStyle(beam, "::after").display,
+        reveals: Array.from(document.querySelectorAll("[data-reveal]")).map((e) => e.getAttribute("data-reveal")),
+      };
+    });
+    expect(quiet.h1).toBe("1");
+    expect(quiet.piece).toBe("none");
+    expect(quiet.beam).toBe("none");
+    expect(quiet.reveals.every((r) => r === "shown")).toBe(true);
+    await still.close();
   });
 
   test("the essay quotes without narrating who it quotes", async ({ request }) => {
@@ -175,7 +243,7 @@ test.describe("recordings", () => {
       const ctx = await browser.newContext({ reducedMotion });
       const p = await ctx.newPage();
       await p.goto("/");
-      const tile = p.locator("li#squeeze");
+      const tile = p.locator("#squeeze");
       await tile.scrollIntoViewIfNeeded();
       const video = tile.locator("video");
       const playing = () => video.evaluate((v: HTMLVideoElement) => !v.paused);

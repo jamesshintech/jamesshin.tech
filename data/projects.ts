@@ -3,6 +3,7 @@
 // site's meta description, not prose written for this page), and a link.
 
 export type ProjectStatus = "live" | "in-review";
+export type Platform = "iOS" | "Web";
 
 export interface Loop {
   webm: string;
@@ -22,6 +23,7 @@ export interface Project {
   /** One line, taken from the product's own listing. */
   tagline: string;
   status: ProjectStatus;
+  platform: Platform;
   /** First public release, or the App Store submission date. */
   date: string;
   url: string;
@@ -34,6 +36,7 @@ export const projects: Project[] = [
     name: "Yonmoku: 3D Four in a Row",
     tagline: "Four in a row, in three dimensions. Two people, one phone.",
     status: "live",
+    platform: "iOS",
     date: "2026-10-31",
     url: "https://apps.apple.com/us/app/yonmoku-3d-four-in-a-row/id6821935069",
     loop: {
@@ -51,6 +54,7 @@ export const projects: Project[] = [
     name: "Squeeze: The Estimation Duel",
     tagline: "A head-to-head estimation duel for two players on one iPhone or iPad.",
     status: "live",
+    platform: "iOS",
     date: "2026-08-31",
     url: "https://apps.apple.com/us/app/squeeze-the-estimation-duel/id6803632348",
     loop: {
@@ -68,6 +72,7 @@ export const projects: Project[] = [
     name: "Vitality Weeks",
     tagline: "Your life in weeks. See every week at a glance.",
     status: "live",
+    platform: "iOS",
     date: "2026-03-06",
     url: "https://apps.apple.com/us/app/vitality-weeks/id6759621537",
     loop: {
@@ -85,6 +90,7 @@ export const projects: Project[] = [
     name: "HighSchoolTrends.org",
     tagline: "Free multi-year trend data for 30,000+ US high schools.",
     status: "live",
+    platform: "Web",
     date: "2025-08-26",
     url: "https://highschooltrends.org",
     loop: {

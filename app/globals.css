@@ -1,23 +1,31 @@
 @import "tailwindcss";
 
 /* ──────────────────────────────────────────────────────────────
-   jamesshin.tech — the back of a game box. Tokens per DESIGN.md.
-   Fonts come from next/font in app/layout.tsx.
+   jamesshin.tech: a story in chapters, one product per screen.
+   Charcoal ground, cream type, amber only on links that matter.
+   Rhythm 8px. Tokens per DESIGN.md; fonts come from next/font in
+   app/layout.tsx.
    ────────────────────────────────────────────────────────────── */
 :root {
-  --ground: #d9dccb;
-  --surface: #c7cbb6;
-  --ink: #14170f;
-  --muted: #4d5244;
-  --accent: #e0497e;
-  --success: #2e6b3f;
-  --warning: #8a6a12;
-  --error: #a8243a;
-  --display: var(--font-archivo), "Arial Black", Arial, sans-serif;
-  --body: var(--font-sentient), Georgia, "Times New Roman", serif;
-  --mono: var(--font-martian), Menlo, Consolas, monospace;
-  --rule: 2px solid var(--ink);
-  --hair: 1px solid var(--ink);
+  --ink: #1c1c1a;
+  --ground: var(--ink);
+  --surface: #27271f;
+  --cream: #f2efe6;
+  --cream-70: rgba(242, 239, 230, 0.7);
+  --cream-55: rgba(242, 239, 230, 0.55);
+  --rule-c: rgba(242, 239, 230, 0.25);
+  --rule-strong: rgba(242, 239, 230, 0.7);
+  --muted: var(--cream-70);
+  --amber: #f2b134;
+  --accent: var(--amber);
+  --sans: var(--font-grotesk), "Helvetica Neue", Arial, sans-serif;
+  --mono: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --rule: 1px solid var(--rule-c);
+  --hair: 1px solid var(--rule-c);
+  --max: 1280px;
+  --gutter: 24px;
+  --nav-h: 65px; /* the sticky nav: 64px row + 1px rule */
+  --ease-out: cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 
 * {
@@ -30,12 +38,16 @@ body {
   padding: 0;
 }
 
-body {
+html {
   background: var(--ground);
-  color: var(--ink);
-  font-family: var(--body);
-  font-size: 18px;
-  line-height: 1.55;
+  color: var(--cream);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   font-variant-numeric: tabular-nums;
 }
@@ -43,65 +55,74 @@ body {
 a {
   color: inherit;
 }
-a:hover {
-  color: var(--accent);
-}
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
-summary:focus-visible {
-  outline: 2px solid var(--ink);
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--amber);
   outline-offset: 3px;
+}
+video {
+  display: block;
 }
 
 /* ─── Type roles ─── */
 .disp,
 .h {
-  font-family: var(--display);
-  font-weight: 900;
-  font-stretch: 125%;
-  line-height: 0.9;
+  font-family: var(--sans);
+  font-weight: 700;
+  line-height: 1.02;
   letter-spacing: -0.03em;
   margin: 0;
   text-wrap: balance;
 }
 .disp {
-  font-size: clamp(44px, 7vw, 96px);
+  font-size: clamp(44px, 6.5vw, 96px);
 }
 .h {
   font-size: clamp(28px, 3.4vw, 48px);
-  line-height: 0.92;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 .lab {
-  font-family: var(--display);
-  font-weight: 700;
-  font-stretch: 80%;
+  font-family: var(--mono);
   font-size: 13px;
-  letter-spacing: 0.06em;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+  color: var(--muted);
 }
 .mono {
   font-family: var(--mono);
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 .line {
   margin: 0;
   max-width: 60ch;
 }
+/* Links are links without hover: a 1px underline sits under every text link. */
+.lnk {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--cream-55);
+  text-underline-offset: 0.28em;
+}
+.lnk:hover {
+  text-decoration-color: var(--cream);
+}
 
 /* ─── Layout ─── */
 .g {
-  max-width: 1376px;
+  max-width: var(--max);
   margin: 0 auto;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-}
-@media (min-width: 861px) {
-  .g {
-    padding-left: 32px;
-    padding-right: 32px;
-  }
+  padding-left: max(var(--gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
 }
 .rule {
   border: 0;
@@ -121,30 +142,47 @@ summary:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  min-height: 52px;
+  gap: 24px;
+  min-height: 64px;
 }
 .nav .brand {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--cream);
   text-decoration: none;
+  padding: 12px 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
 }
 .nav ul {
   display: flex;
-  gap: 20px;
+  gap: 28px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .nav ul a {
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  text-decoration: none;
-  padding: 8px 0;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--cream-55);
+  text-underline-offset: 0.28em;
+}
+.nav ul a:hover {
+  text-decoration-color: var(--cream);
 }
 .nav ul a[aria-current="page"] {
-  color: var(--accent);
+  color: var(--amber);
+  text-decoration-color: var(--amber);
 }
 /* The name and four links need about 400px on one row. Below 480px the
    LinkedIn link lives only in the footer, so the name never wraps. */
@@ -161,210 +199,711 @@ summary:focus-visible {
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 18px;
-  background: var(--ink);
-  color: var(--ground);
-  border: 2px solid var(--ink);
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 22px 0 18px;
+  background: transparent;
+  color: var(--cream);
+  border: 1px solid var(--rule-strong);
   border-radius: 2px;
   text-decoration: none;
-  font-family: var(--display);
-  font-weight: 700;
-  font-stretch: 80%;
-  font-size: 13px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 500;
   cursor: pointer;
+  transition: border-color 160ms ease;
 }
 .btn:hover {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--ink);
+  border-color: var(--cream);
 }
-.btn.ghost {
-  background: transparent;
-  color: var(--ink);
-}
-.btn.ghost:hover {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--ground);
+.btn .mono {
+  color: var(--amber);
 }
 .btn:disabled {
   opacity: 0.5;
   pointer-events: none;
 }
 
-/* ─── Product grid: one phone-shaped tile per product, auto-filling ─── */
-.grid-wrap {
-  padding-top: clamp(48px, 8vw, 120px);
-  padding-bottom: clamp(56px, 9vw, 136px);
+/* ─── Home: the scroll story ───
+   Chapter 0 is the name, the line, both work samples, the first recording
+   and a Contents index; chapters 1 to 3 are one product each, the recording
+   on alternating sides; chapter 4 is the essays. Pinned mode (further down)
+   makes each chapter sticky, holding for its bottom margin while the next
+   slides over it (React Bits ScrollStack slot geometry). Without JavaScript,
+   under reduced motion and on phones, the chapters are plain sections. */
+.story {
+  --pin: calc(100svh - var(--nav-h)); /* one viewport under the sticky nav */
+  --pad: 32px; /* chapter padding, top and bottom */
+  --hold0: 80svh; /* chapter 0 holds while its copy swaps */
+  --hold: 70svh; /* chapters 1 to 3 hold */
+  --rec-h: min(calc(var(--pin) - var(--pad) * 2 - 18px), 880px); /* recording: the chapter's full height */
+  --rail-room: max(var(--gutter), calc(112px - max(0px, (100vw - var(--max)) / 2)));
+  position: relative;
 }
-.tiles {
+.chapter {
+  position: relative;
+  z-index: 1;
+  background: var(--ink);
+  border-top: var(--rule);
+  scroll-margin-top: var(--nav-h);
+}
+.chapter:first-child {
+  border-top: 0;
+}
+.chapter:focus,
+.essays:focus {
+  outline: none;
+}
+.chapter-inner {
+  position: relative;
+  background: var(--ink);
+  transform-origin: 50% 0;
+}
+.chapter-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  column-gap: 64px;
+  padding-top: var(--pad);
+  padding-bottom: var(--pad);
+  min-height: var(--pin);
+}
+.ch .ch-copy,
+.contents {
+  opacity: calc(1 - var(--stack-dim, 0));
+}
+
+/* Chapter 0: intro (a) and caption (b) on the left, Contents under them,
+   the recording on the right. Pinned, a and b share one cell and swap. */
+.c0 .chapter-grid {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "a frame"
+    "b frame"
+    "contents frame";
+  row-gap: 32px;
+}
+.c0-a {
+  grid-area: a;
+}
+.c0-b {
+  grid-area: b;
+}
+.c0 .fig {
+  grid-area: frame;
+  align-self: start;
+}
+.c0-h {
+  font-weight: 700;
+  font-size: clamp(52px, min(6.5vw, 11svh), 96px);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  margin: 0;
+  /* The rise is clipped to the line box; padding keeps descenders inside the clip. */
+  overflow: hidden;
+  padding-bottom: 0.12em;
+  margin-bottom: -0.12em;
+}
+.intro-line {
+  margin: 20px 0 0;
+  max-width: 62ch;
+  font-size: 20px;
+  line-height: 1.45;
+  color: var(--cream-70);
+  text-wrap: pretty;
+  overflow: hidden;
+  padding-bottom: 0.12em;
+  margin-bottom: -0.12em;
+}
+/* The entrance: each piece rises once from below its line, then stays put.
+   CSS only, so the page is complete without JavaScript. */
+.rise-wd {
+  display: inline-block;
+  white-space: nowrap;
+}
+.rise-c,
+.rise-w {
+  display: inline-block;
+  animation: rise 0.8s var(--ease-out) both;
+  animation-delay: calc(var(--d, 0) * 1s);
+}
+/* Blocks that follow the name in (React Bits AnimatedContent, mount trigger):
+   y 40 to 0, opacity 0 to 1, 0.8s power3.out, each with its own delay. */
+.enter {
+  animation: rise 0.8s var(--ease-out) both;
+  animation-delay: calc(var(--d, 0) * 1s);
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The two work samples, side by side, each a bordered card; the PDF's
+   provenance note is printed inside its card, outside the link text. */
+.samples {
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.sample {
+  position: relative;
+  display: grid;
+  align-content: start;
+  row-gap: 8px;
+  padding: 16px 20px 18px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  transition: border-color 160ms ease;
+}
+.sample:hover,
+.sample:focus-within {
+  border-color: var(--cream);
+}
+.sample:has(.btn:focus-visible) {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
+}
+.samples .btn {
+  display: grid;
+  row-gap: 8px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  font-size: 20px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+.samples .btn:focus-visible {
+  outline: none;
+}
+/* The whole card is the link's hit area. */
+.samples .btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.sample-kind {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.sample-kind .mono + .mono {
+  color: var(--cream-70);
+}
+.sample-note {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--cream-70);
+  text-wrap: pretty;
+}
+
+/* Contents: the index of the chapters, rows that share the column's height. */
+.contents {
+  grid-area: contents;
+  display: flex;
+  flex-direction: column;
+}
+.contents-h {
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: var(--rule);
+}
+.contents ol {
+  flex: 1;
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  /* Four across on a laptop, more on wide screens, two on phones; a new
-     product just adds a tile. */
-  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
-  gap: clamp(40px, 5vw, 72px) clamp(24px, 3.2vw, 48px);
+  grid-auto-rows: minmax(44px, 1fr);
 }
-.tile {
+.contents li {
+  display: flex;
+  border-bottom: var(--rule);
+}
+.contents a {
+  flex: 1;
   display: grid;
-  align-content: start;
-  gap: 8px;
-  min-width: 0;
-  scroll-margin-top: 72px;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 16px;
+  min-height: 44px;
+  text-decoration: none;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
-.tile-media {
-  display: block;
-  margin-bottom: 14px;
+.contents a:hover .contents-name {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.28em;
 }
-.tile .phone {
-  max-width: none;
-  aspect-ratio: 9 / 19.5;
-  transition: transform 160ms ease-out;
+.contents li.is-current .mono,
+.contents li.is-current .contents-name {
+  color: var(--amber);
 }
-.tile .phone video {
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
-}
-.tile-media:hover .phone {
-  transform: translateY(-4px);
-}
-.tile-name {
+
+/* ─── Chapter copy: mark, title, tagline, status ─── */
+.ch-mark {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   margin: 0;
-  font-family: var(--display);
-  font-weight: 900;
-  font-stretch: 112%;
-  font-size: clamp(17px, 1.5vw, 21px);
-  line-height: 1.08;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
 }
-.tile-name a {
+.ch-mark::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule-c);
+}
+.ch-name {
+  margin: 0;
+  font-size: clamp(40px, 4.6vw, 72px);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+.c0-b .ch-name {
+  margin-top: 24px;
+}
+.ch-name a {
   text-decoration: none;
 }
-.tile-name a:hover {
-  color: var(--accent);
+/* React Bits ScrollReveal "rise": every word clipped to its line (source
+   RISE_MASK, inset(-1em -1em -0.15em -1em)), the piece inside moves. */
+.sr-word {
+  display: inline-block;
+  clip-path: inset(-1em -1em -0.15em -1em);
 }
-.tile-line {
-  margin: 0;
-  font-size: 16px;
-  line-height: 1.45;
-  color: var(--ink);
+.sr-piece {
+  display: inline-block;
+  overflow-wrap: anywhere;
 }
-.tile-meta {
-  margin: 2px 0 0;
-  font-family: var(--mono);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: var(--muted);
+/* The title is a link: the last word carries the chevron (drawn from two
+   borders, as on every other link to a product), and an underline on hover. */
+.ch-name a > span:last-child .sr-word:last-child .sr-piece::after {
+  content: "";
+  display: inline-block;
+  width: 0.14em;
+  height: 0.14em;
+  margin-left: 0.18em;
+  border-top: 0.045em solid currentColor;
+  border-right: 0.045em solid currentColor;
+  border-radius: 0.03em;
+  vertical-align: middle;
+  transform: translateY(-0.04em) rotate(45deg);
 }
-@media (min-width: 561px) and (max-width: 1023px) {
-  .tiles {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  }
-}
-@media (max-width: 560px) {
-  .tiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 40px 16px;
-  }
-  .tile-line {
-    font-size: 15px;
-  }
-  .tile-name {
-    font-stretch: 100%;
-    /* Fits "HighSchoolTrends" in a half-width column down to 320px. */
-    font-size: clamp(13px, 4.2vw, 16px);
-    overflow-wrap: break-word;
-  }
-}
-
-/* ─── Key art / video panels ─── */
-.key {
-  border: var(--rule);
-  background: var(--surface);
-  position: relative;
-  overflow: hidden;
-  border-radius: 4px;
-}
-.key video,
-.key img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.phone {
-  border: var(--rule);
-  border-radius: 4px;
-  overflow: hidden;
-  background: var(--surface);
-  width: 100%;
-  max-width: 260px;
-}
-.phone video,
-.phone img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-.prov {
-  margin: 10px 0 0;
-  font-family: var(--mono);
-  font-size: 11px;
-  line-height: 1.5;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: var(--muted);
-  max-width: 44ch;
-}
-.loop {
-  position: relative;
-}
-
-/* ─── Intro: who this is and what they want, above the products ─── */
-.intro {
-  padding-top: 48px;
-  padding-bottom: 40px;
-}
-.intro-h {
-  max-width: 20ch;
-}
-.intro-line {
-  margin-top: 16px;
-  font-size: 1.125rem;
-}
-.intro-links {
-  margin: 20px 0 0;
-}
-.intro-links a {
+.ch-name a:hover .sr-piece {
   text-decoration: underline;
   text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
+  text-underline-offset: 0.12em;
 }
-/* The intro already opens the page; the grid needs no extra top space. */
-.intro + .grid-wrap {
-  padding-top: 8px;
+.tile-line.ch-tag {
+  margin: 20px 0 0;
+  font-size: 28px;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  max-width: 30ch;
+  color: var(--cream);
+  text-wrap: pretty;
+}
+.tile-meta {
+  margin: 20px 0 0;
+}
+
+/* Chapters 1 to 3: the recording on one side, the copy on the other. */
+.ch .chapter-grid {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "frame copy";
+}
+.ch-right .chapter-grid {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "copy frame";
+}
+.ch .fig {
+  grid-area: frame;
+  align-self: center;
+}
+.ch .ch-copy {
+  grid-area: copy;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  row-gap: 32px;
+}
+.ch-body {
+  align-self: center;
+}
+.ch-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+.ch-foot .tile-meta {
+  margin: 0;
+}
+.ch-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  text-decoration: none;
+}
+.ch-next .mono:first-child {
+  color: var(--amber);
+}
+.ch-next .mono + .mono {
+  color: var(--cream);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--cream-55);
+  text-underline-offset: 0.28em;
+}
+.ch-next:hover .mono + .mono {
+  text-decoration-color: var(--cream);
+}
+
+/* ─── Frame: the recording in a thin cream frame, never cropped ─── */
+.fig {
+  margin: 0;
+}
+.frame {
+  position: relative;
+  border: 1px solid var(--rule-c);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--ink);
+  transition: border-color 160ms ease;
+}
+.frame:hover {
+  border-color: var(--rule-strong);
+}
+.frame .loop {
+  position: relative;
+}
+.frame video {
+  height: var(--rec-h);
+  width: auto;
+  max-width: 100%;
+  border-radius: 2px;
+  background: #000;
 }
 .loop-link {
   display: block;
-  height: 100%;
 }
 .loop .play {
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  background: var(--ink);
+}
+/* The last word of a link carries a chevron drawn from two borders, so it
+   never splits from its arrow when the title wraps. */
+.nb {
+  white-space: nowrap;
+}
+.essay-title a .nb::after,
+.btn .nb::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  border-radius: 2px;
+  display: inline-block;
+  margin-left: 10px;
+  vertical-align: middle;
+  transform: translateY(-1px) rotate(45deg);
 }
 
-/* ─── Section headers ─── */
+/* The light that circles the current chapter's frame (Magic UI border-beam,
+   in CSS): a masked border ring with a gradient square riding its edge, 10s
+   a lap. Only the current chapter's beam shows and runs. */
+.beam {
+  --beam-width: 2px;
+  --beam-size: 120px;
+  --beam-duration: 10s;
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: var(--beam-width) solid transparent;
+  -webkit-mask: linear-gradient(#000, #000) padding-box, linear-gradient(#000, #000) border-box;
+  mask: linear-gradient(#000, #000) padding-box, linear-gradient(#000, #000) border-box;
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+.beam::after {
+  content: "";
+  position: absolute;
+  width: var(--beam-size);
+  aspect-ratio: 1;
+  background: linear-gradient(to left, var(--amber), var(--cream), transparent);
+  offset-path: rect(0 auto auto 0 round var(--beam-size));
+  offset-distance: 0%;
+  animation: border-beam var(--beam-duration) linear infinite;
+  animation-play-state: paused;
+}
+.chapter.is-current .beam {
+  opacity: 1;
+}
+.chapter.is-current .beam::after {
+  animation-play-state: running;
+}
+@keyframes border-beam {
+  from {
+    offset-distance: 0%;
+  }
+  to {
+    offset-distance: 100%;
+  }
+}
+
+/* Ground layers behind chapter 0: a faint 40px grid (static SVG pattern) and
+   the drifting threads canvas, both faded out toward the bottom so they read
+   as one ground. The frame's opaque ink keeps them off the recording. */
+.grid-bg,
+.threads {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.grid-bg {
+  fill: rgba(242, 239, 230, 0.045);
+  stroke: rgba(242, 239, 230, 0.1);
+  -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 40%, transparent 100%);
+}
+.threads {
+  display: block;
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+}
+
+/* ─── Chapter 4: the essays, a full-width row each ─── */
+.essays {
+  position: relative;
+  z-index: 10;
+  background: var(--ink);
+  border-top: var(--rule);
+  scroll-margin-top: var(--nav-h);
+}
+.essays-inner {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding-top: var(--pad);
+  min-height: inherit;
+}
+.essays-h {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0;
+  font-weight: 500;
+}
+.essays-h::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule-c);
+}
+.essay-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+.essay {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  column-gap: 16px;
+  align-items: center;
+  padding: 28px 0;
+  border-bottom: var(--rule);
+}
+.essay:last-child {
+  border-bottom: 0;
+}
+.essay-title {
+  margin: 0;
+  font-size: clamp(28px, 3.2vw, 44px);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.essay-title a {
+  display: inline-block;
+  padding: 4px 0;
+  text-decoration: none;
+}
+.essay-title a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.12em;
+}
+
+/* ─── The chapter rail and the progress line (pinned mode only) ───
+   The rail is the escape hatch: every chapter one click away, the current
+   one marked. The progress line is Magic UI scroll-progress: a fixed bar,
+   origin left, scaleX = page scroll progress, on the nav's bottom edge. */
+.rail,
+.progress {
+  display: none;
+}
+.rail {
+  position: fixed;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+}
+.rail ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  row-gap: 4px;
+}
+.rail a {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 4px 0 12px;
+  text-decoration: none;
+}
+.rail a::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--rule-strong);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+.rail a:hover {
+  color: var(--cream);
+}
+.rail a:hover::after {
+  border-color: var(--cream);
+}
+.rail li.is-current a {
+  color: var(--amber);
+}
+.rail li.is-current a::after {
+  background: var(--amber);
+  border-color: var(--amber);
+}
+.progress {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: calc(var(--nav-h) - 2px);
+  height: 2px;
+  z-index: 31;
+  background: var(--amber);
+  transform-origin: 0 50%;
+  transform: scaleX(var(--sp, 0));
+  pointer-events: none;
+}
+
+/* ─── Pinned mode ───
+   Only with JavaScript (html.js-story, set before first paint by the page),
+   motion wanted, and a desktop tall enough for a chapter to fit one screen.
+   Must match PINNED in components/home/ScrollStory.tsx. */
+@media (min-width: 901px) and (min-height: 700px) and (prefers-reduced-motion: no-preference) {
+  .js-story .rail,
+  .js-story .progress {
+    display: block;
+  }
+  .js-story .chapter {
+    position: sticky;
+    top: var(--nav-h);
+    height: var(--pin);
+    margin-bottom: var(--hold);
+  }
+  .js-story .c0 {
+    margin-bottom: var(--hold0);
+  }
+  .js-story .chapter:nth-child(2) {
+    z-index: 2;
+  }
+  .js-story .chapter:nth-child(3) {
+    z-index: 3;
+  }
+  .js-story .chapter:nth-child(4) {
+    z-index: 4;
+  }
+  .js-story .chapter-inner {
+    height: var(--pin);
+    will-change: transform;
+  }
+  .js-story .chapter-grid {
+    height: var(--pin);
+    min-height: 0;
+  }
+  .js-story .chapter-grid,
+  .js-story .essays-inner {
+    padding-right: var(--rail-room);
+  }
+  /* Chapter 0: the caption waits, invisible but still read by assistive
+     tech, in the intro's cell; the first scroll swaps them. */
+  .js-story .c0 .chapter-grid {
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      "a frame"
+      "contents frame";
+  }
+  .js-story .c0-a,
+  .js-story .c0-b {
+    grid-area: a;
+    align-self: start;
+  }
+  .js-story .c0-b {
+    align-self: center;
+    opacity: 0;
+    pointer-events: none;
+  }
+  /* The essays and the footer share the last screen. */
+  .js-story .essays {
+    min-height: calc(var(--pin) - 140px);
+  }
+  .js-story .essay-list {
+    grid-template-rows: 1fr 1fr;
+  }
+}
+
+/* Scroll reveals (components/home/Reveal.tsx): hidden only once JavaScript
+   runs, shown when the block enters the viewport or after a short guard. */
+[data-reveal="pending"] {
+  opacity: 0;
+  transform: translateY(40px);
+}
+[data-reveal] {
+  transition:
+    opacity 0.8s var(--ease-out),
+    transform 0.8s var(--ease-out);
+}
+
+/* ─── Section headers (reading pages) ─── */
 .sec {
   border-top: var(--rule);
   scroll-margin-top: 60px;
@@ -375,55 +914,46 @@ summary:focus-visible {
   display: grid;
   gap: 24px;
 }
-.split {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 32px;
-}
-.split .aside {
-  grid-column: span 3;
-}
-.split .main {
-  grid-column: span 9;
-  display: grid;
-  gap: 16px;
-}
-@media (max-width: 860px) {
-  .split .aside,
-  .split .main {
-    grid-column: span 12;
-  }
-}
 
 /* ─── Footer ─── */
 .footer {
-  border-top: var(--rule);
-  background: var(--surface);
+  margin-top: 40px;
 }
 .footer .g {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
+  align-items: center;
   gap: 12px 24px;
-  padding-top: 20px;
-  padding-bottom: 20px;
-  font-family: var(--mono);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  padding-top: 24px;
+  padding-bottom: 32px;
+  border-top: var(--rule);
+  font-size: 15px;
+  color: var(--cream-70);
 }
 .footer ul {
   display: flex;
-  gap: 18px;
+  gap: 24px;
+  flex-wrap: wrap;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .footer a {
-  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--cream);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--cream-55);
+  text-underline-offset: 0.28em;
+}
+.footer a:hover {
+  text-decoration-color: var(--cream);
 }
 
-/* ─── Reading pages (/writing, /log) ─── */
+/* ─── Reading pages (/writing) ─── */
 .reader header .g {
   padding-top: 56px;
   padding-bottom: 24px;
@@ -435,7 +965,7 @@ summary:focus-visible {
   font-family: var(--mono);
   font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   color: var(--muted);
 }
 .archive {
@@ -454,7 +984,9 @@ summary:focus-visible {
   text-decoration: none;
 }
 .archive a:hover .h {
-  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
 }
 .archive .line {
   color: var(--muted);
@@ -475,34 +1007,34 @@ summary:focus-visible {
   margin: 0 0 1.35em;
 }
 .prose h2 {
-  font-family: var(--display);
-  font-weight: 900;
-  font-stretch: 125%;
+  font-family: var(--sans);
+  font-weight: 700;
   font-size: clamp(26px, 3.2vw, 36px);
-  line-height: 0.95;
-  letter-spacing: -0.03em;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   margin: 2.2em 0 0.7em;
 }
 .prose h3 {
-  font-family: var(--display);
-  font-weight: 700;
-  font-stretch: 80%;
-  font-size: 15px;
-  letter-spacing: 0.06em;
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+  color: var(--muted);
   margin: 1.8em 0 0.6em;
 }
 .prose a {
-  color: var(--ink);
+  color: var(--cream);
   text-decoration: underline;
   text-decoration-thickness: 1px;
+  text-decoration-color: var(--cream-55);
   text-underline-offset: 3px;
 }
 .prose a:hover {
-  color: var(--accent);
+  text-decoration-color: var(--cream);
 }
 .prose strong {
-  font-weight: 500;
+  font-weight: 700;
 }
 .prose ul,
 .prose ol {
@@ -521,9 +1053,8 @@ summary:focus-visible {
 .prose blockquote {
   margin: 1.6em 0;
   padding: 0.2em 0 0.2em 1.2em;
-  border-left: var(--rule);
+  border-left: 2px solid var(--rule-strong);
   color: var(--muted);
-  font-style: italic;
 }
 .prose code {
   font-family: var(--mono);
@@ -534,8 +1065,9 @@ summary:focus-visible {
 }
 .prose pre {
   overflow: auto;
-  background: var(--ink);
-  color: var(--ground);
+  background: #111110;
+  color: var(--cream);
+  border: var(--rule);
   padding: 16px 18px;
   border-radius: 4px;
   font-size: 13px;
@@ -583,6 +1115,7 @@ summary:focus-visible {
   font-family: var(--mono);
   font-size: 11px;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--muted);
 }
 
@@ -591,11 +1124,11 @@ summary:focus-visible {
   font-family: var(--mono);
   font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   color: var(--muted);
 }
 .prose .bluf {
-  border: var(--rule);
+  border: 1px solid var(--rule-strong);
   border-radius: 4px;
   background: var(--surface);
   padding: 16px 20px;
@@ -610,7 +1143,7 @@ summary:focus-visible {
   margin: 0 0 1.6em;
 }
 .prose .table-scroll:focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--amber);
   outline-offset: 3px;
 }
 .prose .table-scroll table {
@@ -660,8 +1193,8 @@ summary:focus-visible {
 /* ─── Essay figures ───
    Diagrams are HTML, not pictures: text reflows at phone width, uses the
    site fonts, and reads as ordered lists in feed readers, which drop CSS.
-   Ink on moss only: no accent, no status colours (DESIGN.md, Essay figures).
-   Steps are list items; arrows are drawn in the gaps between them. */
+   Cream on charcoal only: no accent, no status colours. Steps are list
+   items; arrows are drawn in the gaps between them. */
 .prose .fig {
   margin: 2.4em 0;
 }
@@ -683,7 +1216,7 @@ summary:focus-visible {
 }
 .prose .fig .fig-node {
   position: relative;
-  border: var(--rule);
+  border: 1px solid var(--rule-strong);
   border-radius: 4px;
   background: var(--surface);
   padding: 10px 12px;
@@ -692,19 +1225,20 @@ summary:focus-visible {
   overflow-wrap: break-word;
 }
 .prose .fig .fig-node strong {
-  font-family: var(--display);
-  font-weight: 700;
-  font-stretch: 80%;
-  font-size: 13px;
-  letter-spacing: 0.06em;
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .prose .fig .fig-node--plain {
   background: transparent;
+  border-color: var(--rule-c);
 }
 .prose .fig .fig-node--ink {
-  background: var(--ink);
-  color: var(--ground);
+  background: var(--cream);
+  border-color: var(--cream);
+  color: var(--ink);
 }
 .prose .fig .fig-group {
   position: relative;
@@ -723,7 +1257,7 @@ summary:focus-visible {
   left: 22px;
   top: -30px;
   height: 26px;
-  border-left: 2px solid var(--ink);
+  border-left: 2px solid var(--rule-strong);
 }
 .prose .fig .fig-flow > li + li::after {
   content: "";
@@ -731,7 +1265,7 @@ summary:focus-visible {
   left: 17px;
   top: -12px;
   border-style: solid;
-  border-color: var(--ink) transparent transparent;
+  border-color: var(--rule-strong) transparent transparent;
   border-width: 8px 6px 0;
 }
 .prose .fig .fig-edge {
@@ -757,12 +1291,12 @@ summary:focus-visible {
     width: 18px;
     height: 0;
     border-left: 0;
-    border-top: 2px solid var(--ink);
+    border-top: 2px solid var(--rule-strong);
   }
   .prose .fig .fig-flow--row > li + li::after {
     left: -10px;
     top: calc(50% - 5px);
-    border-color: transparent transparent transparent var(--ink);
+    border-color: transparent transparent transparent var(--rule-strong);
     border-width: 6px 0 6px 8px;
   }
 }
@@ -777,7 +1311,7 @@ summary:focus-visible {
 }
 .prose .fig .fig-blocked {
   margin-top: 16px;
-  border: 2px dashed var(--ink);
+  border: 2px dashed var(--rule-strong);
   border-radius: 4px;
   padding: 10px 12px;
   font-size: 15px;
@@ -797,7 +1331,7 @@ summary:focus-visible {
   font-family: var(--mono);
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   color: var(--muted);
 }
 .prose .fig .fig-row-n {
@@ -811,7 +1345,7 @@ summary:focus-visible {
   font-size: 13px;
 }
 .prose .fig--shift .fig-node strong {
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.03em;
 }
 .prose .fig .fig-cols {
@@ -840,12 +1374,12 @@ summary:focus-visible {
     width: 18px;
     height: 0;
     border-left: 0;
-    border-top: 2px solid var(--ink);
+    border-top: 2px solid var(--rule-strong);
   }
   .prose .fig .fig-flow--wide-row > li + li::after {
     left: -10px;
     top: calc(50% - 5px);
-    border-color: transparent transparent transparent var(--ink);
+    border-color: transparent transparent transparent var(--rule-strong);
     border-width: 6px 0 6px 8px;
   }
   .prose .fig .fig-flow--wide-row .fig-edge {
@@ -869,10 +1403,197 @@ summary:focus-visible {
   .prose .fig--boundary .fig-node strong,
   .prose .fig--gate .fig-node strong,
   .prose .fig--chain .fig-node strong {
-    font-size: 12px;
+    font-size: 11px;
     letter-spacing: 0.03em;
   }
 }
 
-/* ─── Motion: reduced-motion first ─── */
+/* ─── Tablet ─── */
+@media (max-width: 1100px) and (min-width: 901px) {
+  .chapter-grid {
+    column-gap: 32px;
+  }
+  .samples {
+    grid-template-columns: 1fr;
+  }
+  .tile-line.ch-tag {
+    font-size: 24px;
+  }
+}
 
+/* ─── Phone ───
+   No pins. Every chapter is one grid: the recording (capped by the screen's
+   height and by its width, so a status column always fits beside it) with
+   the chapter mark and status beside it, then the name and tagline under
+   it. Chapter 0 puts the name and line first and the work samples and
+   Contents last. */
+@media (max-width: 900px) {
+  :root {
+    --gutter: 20px;
+  }
+  .story {
+    --pad: 24px;
+    /* 2.174 is every recording's height / width; 158px = gutters, frame, gap, status column. */
+    --rec-h: min(60svh, calc((100vw - 158px) * 2.174));
+  }
+  .nav .g {
+    gap: 16px;
+  }
+  .nav .brand {
+    font-size: 16px;
+  }
+  .nav ul {
+    gap: 12px;
+  }
+  .nav ul a {
+    font-size: 14px;
+  }
+  .chapter-grid,
+  .ch .chapter-grid,
+  .ch-right .chapter-grid {
+    min-height: 0;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "frame mark"
+      "frame meta"
+      "frame ."
+      "name name"
+      "tag tag"
+      "next next";
+    column-gap: 16px;
+    row-gap: 16px;
+    align-items: start;
+  }
+  /* On phones the work samples come straight after the line, before the
+     recording: a recruiter on a phone reaches them without scrolling past a
+     full-height video. This also matches the DOM (and so the tab) order. */
+  .c0 .chapter-grid {
+    grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "h1 h1"
+      "line line"
+      "samples samples"
+      "frame mark"
+      "frame meta"
+      "frame ."
+      "name name"
+      "tag tag"
+      "contents contents";
+  }
+  .c0-a,
+  .c0-b,
+  .ch .ch-copy,
+  .ch-body,
+  .ch-foot {
+    display: contents;
+  }
+  .c0-h {
+    grid-area: h1;
+    font-size: clamp(48px, 13vw, 64px);
+  }
+  .intro-line {
+    grid-area: line;
+    margin-top: 0;
+    font-size: 18px;
+  }
+  .samples {
+    grid-area: samples;
+    grid-template-columns: 1fr;
+    margin: 8px 0 16px;
+  }
+  .contents {
+    margin-top: 8px;
+  }
+  .contents a {
+    grid-template-columns: 36px minmax(0, 1fr);
+    font-size: 17px;
+  }
+  .fig,
+  .ch .fig {
+    grid-area: frame;
+    align-self: start;
+  }
+  .ch-mark {
+    grid-area: mark;
+  }
+  .ch-mark::after {
+    display: none;
+  }
+  .ch-name,
+  .c0-b .ch-name {
+    grid-area: name;
+    margin-top: 8px;
+    font-size: clamp(28px, 9vw, 44px);
+  }
+  .tile-line.ch-tag {
+    grid-area: tag;
+    margin: 0;
+    font-size: 20px;
+  }
+  .tile-meta,
+  .ch-foot .tile-meta {
+    grid-area: meta;
+    margin: 0;
+  }
+  .tile-meta span {
+    display: block;
+  }
+  .tile-meta .sep {
+    display: none;
+  }
+  .ch-next {
+    grid-area: next;
+  }
+  .frame video {
+    max-width: none;
+  }
+  .essays-inner {
+    padding-top: 24px;
+  }
+  .essay {
+    grid-template-columns: 36px minmax(0, 1fr);
+    row-gap: 4px;
+    padding: 20px 0;
+  }
+  .essay > .mono:last-child {
+    grid-column: 2;
+  }
+  .essay-title {
+    font-size: 24px;
+  }
+  .footer {
+    margin-top: 32px;
+  }
+}
+@media (max-width: 400px) {
+  .nav ul {
+    gap: 10px;
+  }
+}
+
+/* ─── Motion: reduced-motion first ───
+   No pins (the pinned query needs motion), the beam stops, nothing rises
+   (and nothing is ever hidden), the threads canvas draws one still frame
+   (components/home/Threads.tsx). */
+@media (prefers-reduced-motion: reduce) {
+  .beam::after {
+    display: none;
+  }
+  .rise-c,
+  .rise-w,
+  .enter {
+    animation: none;
+  }
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none;
+  }
+  .frame,
+  .btn,
+  .sample,
+  .rail a::after {
+    transition: none;
+  }
+}

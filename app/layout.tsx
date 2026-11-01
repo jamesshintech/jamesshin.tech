@@ -1,38 +1,23 @@
 import type { Metadata } from "next";
-import { Archivo, Martian_Mono } from "next/font/google";
-import localFont from "next/font/local";
+import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { jsonLd } from "@/lib/json-ld";
 import { siteConfig, absoluteUrl } from "@/data/config";
 import "./globals.css";
 
-// Archivo carries two voices through its width axis: 125 for headlines,
-// 80 for labels. Martian Mono sets anything that is a fact. Sentient
-// (Fontshare, ITF Free Font License, self-hosted) is the reading face.
-const archivo = Archivo({
+// One grotesk for everything that is prose or a heading; one mono for
+// anything that is a fact (dates, status, counts).
+const grotesk = Space_Grotesk({
   subsets: ["latin"],
-  weight: "variable",
-  axes: ["wdth"],
+  weight: ["400", "500", "700"],
   display: "swap",
-  variable: "--font-archivo",
-  adjustFontFallback: true,
+  variable: "--font-grotesk",
 });
 
-const martian = Martian_Mono({
+const mono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["400", "700"],
+  weight: ["400", "500"],
   display: "swap",
-  variable: "--font-martian",
-});
-
-const sentient = localFont({
-  src: [
-    { path: "../assets/fonts/sentient-400.woff2", weight: "400", style: "normal" },
-    { path: "../assets/fonts/sentient-400-italic.woff2", weight: "400", style: "italic" },
-    { path: "../assets/fonts/sentient-500.woff2", weight: "500", style: "normal" },
-  ],
-  display: "swap",
-  variable: "--font-sentient",
-  adjustFontFallback: "Times New Roman",
+  variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
@@ -75,7 +60,9 @@ const personJsonLd = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${archivo.variable} ${martian.variable} ${sentient.variable}`}>
+    // The home page adds one class to <html> before first paint (its pin
+    // gate), so the client's className never matches the server's exactly.
+    <html lang="en" className={`${grotesk.variable} ${mono.variable}`} suppressHydrationWarning>
       <head>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(personJsonLd) }} />
       </head>
