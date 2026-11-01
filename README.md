@@ -36,7 +36,7 @@ pnpm lint && pnpm typecheck
 pnpm test:e2e
 ```
 
-`dev` and `build` first run [`scripts/fetch-fonts.mjs`](scripts/fetch-fonts.mjs). It downloads the Sentient webfont from Fontshare into `assets/fonts/` and checks each file against a pinned SHA-256, so it needs network access the first time. Node 20 or later.
+`dev` and `build` first run [`scripts/fetch-fonts.mjs`](scripts/fetch-fonts.mjs). It downloads the Sentient webfont from Fontshare into `assets/fonts/` and checks each file against a pinned SHA-256, so it needs network access the first time. Node 22 (CI and Vercel use the same major).
 
 ## Notes
 
@@ -47,5 +47,5 @@ pnpm test:e2e
 
 - **Code:** [MIT](LICENSE).
 - **Essays** (`content/essays/`): © James Shin, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Quoted material belongs to its authors.
-- **App recordings, app names and icons** (`public/video/`): © James Shin, all rights reserved.
+- **App recordings and app names** (`public/video/`): © James Shin, all rights reserved.
 - **Fonts:** Archivo and Martian Mono are under the SIL Open Font License, served through `next/font/google`. Sentient is under the ITF Free Font License, which allows self-hosting but not redistribution. That is why it is fetched at build time and never committed.

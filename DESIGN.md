@@ -105,7 +105,7 @@ Ink `#14170F` on ground `#D9DCCB` is 13:1; muted `#4D5244` passes 4.5:1 on both 
 
 ## Typography
 
-Archivo (Google Fonts, SIL OFL 1.1, variable weight and width) is the box-back voice: width 125 / weight 900 for headlines, width 80 / weight 700 caps for labels, so one family does two jobs and the page never looks like a font pile. Sentient (Fontshare, ITF Free Font License) reads like an indie manual, not a bank; the license allows self-hosting but not redistribution, so `scripts/fetch-fonts.mjs` downloads the 400, 400 italic and 500 woff2 files into `assets/fonts/` at build and pins their hashes. Martian Mono (Google Fonts, SIL OFL 1.1) sets status lines, dates, captions and sources; its wide letterforms rhyme with Archivo expanded. Scale: 13 / 14 / 18 / 28 / 44 / 96. Display stays at or under 6rem. Fonts load through `next/font` with metric fallbacks (Arial Black for Archivo, Georgia for Sentient, Menlo for Martian Mono).
+Archivo (Google Fonts, SIL OFL 1.1, variable weight and width) is the box-back voice: width 125 / weight 900 for headlines, width 80 / weight 700 caps for labels, so one family does two jobs and the page never looks like a font pile. Sentient (Fontshare, ITF Free Font License) reads like an indie manual, not a bank; the license allows self-hosting but not redistribution, so `scripts/fetch-fonts.mjs` downloads the 400, 400 italic and 500 woff2 files into `assets/fonts/` at build and pins their hashes. Martian Mono (Google Fonts, SIL OFL 1.1) sets status lines, dates, captions and sources; its wide letterforms rhyme with Archivo expanded. Scale: 13 / 14 / 18 / 28 / 44 / 96. Display stays at or under 6rem. Fonts load through `next/font` with size-adjusted fallbacks: Next picks them for Archivo and Martian Mono, and Sentient falls back to Times New Roman.
 
 ## Layout
 
@@ -113,7 +113,7 @@ Max width 1376px, 32px gutters (16px on phones), nothing centered. Home is a gri
 
 ## Elevation & Depth
 
-None by shadow. Depth is a 2px ink keyline, the surface tone against the ground, and the one inverted band (ink with moss text) allowed per page. No glow, no blur, no gradients.
+None by shadow. Depth is a 2px ink keyline, and the surface tone against the ground. No glow, no blur, no gradients.
 
 ## Shapes
 

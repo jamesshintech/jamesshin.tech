@@ -13,7 +13,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   for (const p of getAllPosts()) {
     entries.push({
       url: absoluteUrl(`/writing/${p.slug}`),
-      lastModified: new Date(p.date),
+      lastModified: new Date(p.revised ?? p.date),
       changeFrequency: "yearly",
       priority: 0.8,
     });

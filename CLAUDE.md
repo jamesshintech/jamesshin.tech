@@ -11,7 +11,7 @@ Router, Tailwind v4, TypeScript, pnpm, deployed on Vercel.
 
 ## Design
 DESIGN.md is the source of truth: moss `#D9DCCB` ground, ink `#14170F`, one
-raspberry accent `#E0497E` used in three places only; Archivo, Sentient and
+raspberry accent `#E0497E` that only marks state (current page, hover); Archivo, Sentient and
 Martian Mono. Tokens live in `app/globals.css`. Ask before departing from it.
 
 ## Adding a project
