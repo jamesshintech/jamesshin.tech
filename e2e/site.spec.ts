@@ -1,9 +1,12 @@
 import { test, expect } from "@playwright/test";
 
-// Strings that must never appear on a public surface again. The retired brand
-// is listed here; private patterns come from BANNED_PATTERNS (one regex per
-// line, from a CI secret or .env.local) so the list itself is never published.
-// REQUIRE_BANNED_PATTERNS=1 turns a missing secret into a failure.
+// Privacy and leftovers check. Until the 2026-10-23 relaunch this site was
+// published under my company's name, JJ Fisher, with different content; the
+// public list catches any leftover of that. Personal details that must never
+// appear (contact details, old handles) come from BANNED_PATTERNS, one regex
+// per line, in a CI secret or .env.local, so the test never has to publish
+// the very strings it protects. REQUIRE_BANNED_PATTERNS=1 fails a run that
+// is missing them.
 // Lines are separated by newlines (CI secret) or a literal "\n" (the one-line
 // .env.local form), so a pattern cannot itself contain the two characters \n.
 const privatePatterns = (process.env.BANNED_PATTERNS ?? "")
@@ -149,7 +152,9 @@ test.describe("home", () => {
     expect(json["@type"]).toBe("Person");
     expect(json.name).toBe("James Shin");
     expect(json.url).toBe("https://jamesshin.tech/");
-    expect(json.sameAs).toEqual(["https://www.linkedin.com/in/jamesshin2"]);
+    expect(json.sameAs).toEqual(["https://github.com/jamesshintech", "https://www.linkedin.com/in/jamesshin2"]);
+    // The footer links the same profiles a visitor can check.
+    await expect(page.locator("footer").getByRole("link", { name: "GitHub" })).toHaveAttribute("href", "https://github.com/jamesshintech");
   });
 });
 
@@ -191,7 +196,7 @@ test.describe("writing", () => {
   });
 
   for (const [path, h1] of [[MOAT, "Distribution Moat"], [BILLING, "Billing Controls"]] as const) {
-    test(`${h1} renders and carries no old-brand or employer strings`, async ({ page }) => {
+    test(`${h1} renders and carries no leftover or private strings`, async ({ page }) => {
       await page.goto(path);
       await expect(page.getByRole("heading", { level: 1 })).toContainText(h1);
       const html = await page.content();

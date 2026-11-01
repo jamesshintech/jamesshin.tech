@@ -22,7 +22,7 @@ Every route, including the OG image, is prerendered at build time. There are no 
 - **Essay rendering.** Figures and tables fit at 320, 390, 520, 820 and 1440px. That check forbids mid-word breaks, so a word that does not fit shows up as overflow instead of being silently split.
 - **Content contracts.** The billing essay keeps its publication date, bottom line, both diagrams, three tables and five footnotes. The incident footnote links both status-page incidents, and the Stripe quote matches its source character for character.
 - **Behaviour, not just content.** Recordings play when scrolled into view and hold still under reduced motion until asked. The word count leaves figures, code and footnote markers out. Missing frontmatter fails loudly, naming the file. Tables get their scroll region. JSON-LD cannot close its script tag early.
-- **What must never ship.** A list of retired-brand strings, plus private patterns supplied by a CI secret so the list itself is never published. A private match is reported by index only, so a failing run never prints a pattern. Retired routes return 404, and the RSS feed and sitemap use only the current domain.
+- **Privacy.** Published pages must not contain personal contact details or leftovers from the site's previous version. The personal patterns live in a CI secret rather than the repo, and a failure reports which pattern matched by number, not by text. Retired routes return 404, and the RSS feed and sitemap use only the current domain.
 
 Checks that guard against a past bug were run against that bug first and seen to fail; the reduced-motion test found one on its first run (the Play button sat inside a link hidden from assistive tech).
 
@@ -40,6 +40,8 @@ pnpm test:e2e
 
 ## Notes
 
+- **History starts at the relaunch.** The site was rebuilt as jamesshin.tech on 2026-10-23. Earlier versions lived in a private repo and are not included.
+- **My iOS apps are published through my company, JJ Fisher LLC,** which is also the name the site used before the relaunch.
 - **Built with Claude Code.** Every change goes through the checks above, and each commit message explains the reasoning.
 - **One version skew is deliberate.** `eslint-config-next` is on 16.x for its flat-config exports while `next` is on 15.5. The App Router renders with the React build that ships inside Next, which is why `@types/react` is on 19. Moving everything to Next 16 is a separate change.
 
