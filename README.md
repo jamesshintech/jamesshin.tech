@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/jamesshintech/jamesshin.tech/actions/workflows/ci.yml/badge.svg)](https://github.com/jamesshintech/jamesshin.tech/actions/workflows/ci.yml)
 
-The source of [jamesshin.tech](https://jamesshin.tech): who I am and the role I want, a billing-controls work sample, four products I built and shipped alone (each shown by a recording of the real app), and my essays.
+The source of [jamesshin.tech](https://jamesshin.tech): who I am, a billing-controls work sample, four products I built and shipped (each shown by a recording of the real app), and my essays.
 
 Every route, including the OG image, is prerendered at build time. There are no cookies, analytics or client-side tracking, and first-load JavaScript stays at Next.js's own baseline (about 102 kB shared, 106 kB for the home page).
 

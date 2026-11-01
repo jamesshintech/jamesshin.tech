@@ -38,11 +38,10 @@ export default function Home() {
       <main id="work">
         <section className="g intro" aria-labelledby="intro-h">
           <h1 id="intro-h" className="h intro-h">
-            Product manager for billing and finance systems.
+            I build things and ship them.
           </h1>
           <p className="line intro-line">
-            13 years in finance systems, from contract to ledger: order-to-cash, billing, the close and its controls. I also build and
-            ship software alone.
+            13 years in finance systems, from contract to ledger: order-to-cash, billing, the close and its controls.
           </p>
           <p className="intro-links lab">
             {sample && <Link href={`/writing/${sample.slug}`}>Work sample: {sample.title}</Link>}

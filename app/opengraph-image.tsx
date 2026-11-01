@@ -31,11 +31,11 @@ export default function OGImage() {
           <span>{siteConfig.role.toUpperCase()}</span>
         </div>
         <div style={{ display: "flex", flexDirection: "column", fontSize: 84, fontWeight: 700, lineHeight: 1.02, letterSpacing: -2 }}>
-          <span>I find a real need and</span>
-          <span>ship the whole thing, alone.</span>
+          <span>I build things</span>
+          <span>and ship them.</span>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 26, color: MUTED, paddingTop: 20, borderTop: `2px solid ${INK}` }}>
-          <span>30,000+ US high schools ranked · three iOS apps</span>
+          <span>Four products, all live</span>
           <span style={{ color: INK }}>{siteConfig.domain}</span>
         </div>
       </div>

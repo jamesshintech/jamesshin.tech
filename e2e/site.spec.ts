@@ -110,9 +110,9 @@ test.describe("home", () => {
     expect(await (await request.get("/sitemap.xml")).text()).not.toContain("/log");
   });
 
-  test("an intro says who this is and what role, and offers the work sample", async ({ page }) => {
+  test("an intro says who this is and their background, and offers the work sample", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Product manager for billing and finance systems.");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("I build things and ship them.");
     await expect(page.locator(".intro-line")).toContainText("13 years in finance systems");
     const sample = page.locator(".intro-links").getByRole("link", { name: /^Work sample: Billing Controls/ });
     await expect(sample).toHaveAttribute("href", BILLING);

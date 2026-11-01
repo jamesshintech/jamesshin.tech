@@ -15,7 +15,7 @@ export const siteConfig = {
   meta: {
     title: "James Shin — Builder",
     description:
-      "I find a real need and ship the whole thing, alone: a rankings site for 30,000+ US high schools and three iOS apps, idea to App Store.",
+      "I build things and ship them. Four products, all live, and essays.",
   },
   // The date the numbers on the home page were last checked against their
   // sources. Bump it whenever data/projects.ts changes.
