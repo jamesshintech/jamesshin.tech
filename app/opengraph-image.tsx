@@ -1,10 +1,15 @@
 import { ImageResponse } from "next/og";
 import { siteConfig } from "@/data/config";
 
-export const runtime = "edge";
+// Rendered once at build time, in the site's own palette: moss ground, ink
+// type, hard 2px rules. No accent: DESIGN.md keeps it for interactive state.
 export const alt = `${siteConfig.name} — ${siteConfig.role}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+
+const MOSS = "#D9DCCB";
+const INK = "#14170F";
+const MUTED = "#4D5244";
 
 export default function OGImage() {
   return new ImageResponse(
@@ -17,29 +22,24 @@ export default function OGImage() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: 72,
-          background: "linear-gradient(180deg, #1a3a5c, #0f1f33 75%)",
-          color: "#f6efe0",
-          fontFamily: "Georgia, serif",
+          background: MOSS,
+          color: INK,
         }}
       >
-        <div style={{ display: "flex", fontSize: 22, letterSpacing: 6, color: "#d9a441", fontFamily: "monospace" }}>
-          {siteConfig.name.toUpperCase()} · {siteConfig.role.toUpperCase()}
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 24, letterSpacing: 4, paddingBottom: 20, borderBottom: `2px solid ${INK}` }}>
+          <span>{siteConfig.name.toUpperCase()}</span>
+          <span>{siteConfig.role.toUpperCase()}</span>
         </div>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", fontSize: 104, lineHeight: 1, letterSpacing: -2 }}>
-            I ship the <span style={{ color: "#d9a441", fontStyle: "italic", marginLeft: 24 }}>whole</span>
-            <span style={{ marginLeft: 24 }}>thing.</span>
-          </div>
-          <div style={{ display: "flex", fontSize: 44, fontStyle: "italic", color: "#d9a441", marginTop: 12 }}>
-            Idea to App Store, alone.
-          </div>
+        <div style={{ display: "flex", flexDirection: "column", fontSize: 84, fontWeight: 700, lineHeight: 1.02, letterSpacing: -2 }}>
+          <span>I find a real need and</span>
+          <span>ship the whole thing, alone.</span>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 22, color: "#c3cfdc", fontFamily: "monospace" }}>
-          <span>30,000+ schools ranked · 3 iOS apps</span>
-          <span>{siteConfig.domain}</span>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 26, color: MUTED, paddingTop: 20, borderTop: `2px solid ${INK}` }}>
+          <span>30,000+ US high schools ranked · three iOS apps</span>
+          <span style={{ color: INK }}>{siteConfig.domain}</span>
         </div>
       </div>
     ),
-    { ...size }
+    { ...size },
   );
 }
