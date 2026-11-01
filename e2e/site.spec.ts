@@ -12,7 +12,15 @@ const privatePatterns = (process.env.BANNED_PATTERNS ?? "")
 if (process.env.REQUIRE_BANNED_PATTERNS === "1" && privatePatterns.length === 0) {
   throw new Error("BANNED_PATTERNS is empty but REQUIRE_BANNED_PATTERNS=1");
 }
-const BANNED = [/JJ Fisher/i, /jjfisher\.dev/i, /single-family/i, /holding company/i, ...privatePatterns];
+const PUBLIC_BANNED = [/JJ Fisher/i, /jjfisher\.dev/i, /single-family/i, /holding company/i];
+
+// Public patterns may be named in a failure message. Private ones are reported
+// by index only, so a failing run never prints them into logs or reports.
+function expectClean(html: string, where: string) {
+  for (const re of PUBLIC_BANNED) expect(html, `${where}: banned string ${re}`).not.toMatch(re);
+  const hits = privatePatterns.flatMap((re, i) => (re.test(html) ? [i] : []));
+  expect(hits, `${where}: private banned patterns matched (by index)`).toEqual([]);
+}
 
 const BILLING = "/writing/2026-w43-billing-controls-from-checklists-to-harnesses";
 const MOAT = "/writing/2026-w17-the-distribution-moat-in-the-ai-era";
@@ -53,7 +61,7 @@ test.describe("home", () => {
     await expect(page.locator("section#essays ul.archive li")).toHaveCount(2);
 
     const html = await page.content();
-    for (const re of BANNED) expect(html, `banned string ${re}`).not.toMatch(re);
+    expectClean(html, "home");
     expect(html).not.toContain("/_vercel/insights");
   });
 
@@ -136,6 +144,34 @@ test.describe("home", () => {
   });
 });
 
+test.describe("recordings", () => {
+  test("play when scrolled into view; under reduced motion hold the poster until Play is pressed", async ({ browser }) => {
+    for (const reducedMotion of ["no-preference", "reduce"] as const) {
+      const ctx = await browser.newContext({ reducedMotion });
+      const p = await ctx.newPage();
+      await p.goto("/");
+      const tile = p.locator("li#squeeze");
+      await tile.scrollIntoViewIfNeeded();
+      const video = tile.locator("video");
+      const playing = () => video.evaluate((v: HTMLVideoElement) => !v.paused);
+      if (reducedMotion === "no-preference") {
+        await expect.poll(playing, { message: "plays in view" }).toBe(true);
+        await expect(tile.getByRole("button", { name: /play/i })).toHaveCount(0);
+      } else {
+        const play = tile.getByRole("button", { name: /^play \d+s loop$/i });
+        await expect(play).toBeVisible();
+        await p.waitForTimeout(800);
+        expect(await playing(), "holds the poster under reduced motion").toBe(false);
+        await play.click();
+        await expect.poll(playing, { message: "plays once asked" }).toBe(true);
+        // The button sits outside the recording's link: pressing it must not open the store.
+        expect(ctx.pages(), "Play opened another page").toHaveLength(1);
+      }
+      await ctx.close();
+    }
+  });
+});
+
 test.describe("writing", () => {
   test("two essays are published, newest first", async ({ page }) => {
     await page.goto("/writing");
@@ -150,8 +186,7 @@ test.describe("writing", () => {
       await page.goto(path);
       await expect(page.getByRole("heading", { level: 1 })).toContainText(h1);
       const html = await page.content();
-      for (const re of BANNED) expect(html, `banned string ${re}`).not.toMatch(re);
-      expect(html).not.toMatch(/github\.com\/(jjfisherdev|jamesshintech)\/personalwebsite/);
+      expectClean(html, path);
     });
   }
 
@@ -190,6 +225,12 @@ test.describe("writing", () => {
     for (let i = 0; i < 3; i++) await expect(figs.nth(i).locator("figcaption")).toHaveText(new RegExp(`^Figure ${i + 1}\\.`));
     // Diagram labels are not prose: the count stays what the text alone measures.
     await expect(page.locator(".reader header .meta")).toContainText("610 words");
+    // Rewritten after first publication: the page and the JSON-LD both say so.
+    await expect(page.locator(".reader header .meta")).toContainText("revised October 23, 2026");
+    const lds = (await page.locator('script[type="application/ld+json"]').allTextContents()).map((t) => JSON.parse(t));
+    const article = lds.find((ld) => ld["@type"] === "Article");
+    expect(article?.datePublished).toBe("2026-04-26");
+    expect(article?.dateModified).toBe("2026-10-23");
   });
 
   test("essay figures and tables fit at phone and desktop widths, with no word squeezed out of its box", async ({ browser }) => {

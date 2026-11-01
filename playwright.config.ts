@@ -22,7 +22,8 @@ try {
 export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
-  retries: 1,
+  // No retries: a flaky test should fail loudly, not pass on its second try.
+  retries: 0,
   use: {
     baseURL: "http://localhost:3000",
     screenshot: "only-on-failure",
