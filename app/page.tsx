@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
 import { VideoLoop } from "@/components/story/VideoLoop";
-import { absoluteUrl } from "@/data/config";
+import { absoluteUrl, siteConfig } from "@/data/config";
 import { getProjects } from "@/data/projects";
 import { getAllPosts } from "@/lib/writing";
 
@@ -29,12 +29,32 @@ function formatDate(iso: string): string {
 export default function Home() {
   const projects = getProjects();
   const posts = getAllPosts();
+  const sample = posts.find((p) => p.slug === siteConfig.workSample);
 
   return (
     <>
       <Nav current="home" />
 
       <main id="work">
+        <section className="g intro" aria-labelledby="intro-h">
+          <h1 id="intro-h" className="h intro-h">
+            Product manager for billing and finance systems.
+          </h1>
+          <p className="line intro-line">
+            13 years in finance systems, from contract to ledger: order-to-cash, billing, the close and its controls. I also build and
+            ship software alone.
+          </p>
+          <p className="intro-links lab">
+            {sample && <Link href={`/writing/${sample.slug}`}>Work sample: {sample.title}</Link>}
+            {siteConfig.resumeUrl && (
+              <>
+                {" · "}
+                <a href={siteConfig.resumeUrl}>Resume (PDF)</a>
+              </>
+            )}
+          </p>
+        </section>
+
         <section className="g grid-wrap" aria-label="Products">
           <ol className="tiles">
             {projects.map((p) => (

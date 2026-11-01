@@ -328,6 +328,31 @@ summary:focus-visible {
 .loop {
   position: relative;
 }
+
+/* ─── Intro: who this is and what they want, above the products ─── */
+.intro {
+  padding-top: 48px;
+  padding-bottom: 40px;
+}
+.intro-h {
+  max-width: 20ch;
+}
+.intro-line {
+  margin-top: 16px;
+  font-size: 1.125rem;
+}
+.intro-links {
+  margin: 20px 0 0;
+}
+.intro-links a {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+/* The intro already opens the page; the grid needs no extra top space. */
+.intro + .grid-wrap {
+  padding-top: 8px;
+}
 .loop-link {
   display: block;
   height: 100%;

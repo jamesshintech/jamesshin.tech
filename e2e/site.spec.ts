@@ -65,10 +65,11 @@ test.describe("home", () => {
     for (const meta of await page.locator("p.tile-meta").allTextContents()) expect(meta).toMatch(/^Live · /);
     await expect(page.locator("li#yonmoku p.tile-meta")).toHaveText("Live · Oct 2026");
 
-    // Concise: no static images, and the whole main column under 120 words.
+    // Concise: no static images, and the whole main column (intro, products,
+    // essay list) under 140 words. The budget keeps pitch copy off the page.
     expect(await page.locator("img").count()).toBe(0);
     const words = await page.locator("main").evaluate((m) => (m as HTMLElement).innerText.trim().split(/\s+/).filter(Boolean).length);
-    expect(words).toBeLessThan(120);
+    expect(words).toBeLessThan(140);
 
     await expect(page.locator("section#essays ul.archive li")).toHaveCount(2);
 
@@ -107,6 +108,16 @@ test.describe("home", () => {
     await expect(page.locator("nav").getByRole("link", { name: /^log$/i })).toHaveCount(0);
     expect((await request.get("/log")).status()).toBe(404);
     expect(await (await request.get("/sitemap.xml")).text()).not.toContain("/log");
+  });
+
+  test("an intro says who this is and what role, and offers the work sample", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Product manager for billing and finance systems.");
+    await expect(page.locator(".intro-line")).toContainText("13 years in finance systems");
+    const sample = page.locator(".intro-links").getByRole("link", { name: /^Work sample: Billing Controls/ });
+    await expect(sample).toHaveAttribute("href", BILLING);
+    // No resume link until a real PDF is configured; never a dead link.
+    await expect(page.getByRole("link", { name: /resume/i })).toHaveCount(0);
   });
 
   test("the essay quotes without narrating who it quotes", async ({ request }) => {

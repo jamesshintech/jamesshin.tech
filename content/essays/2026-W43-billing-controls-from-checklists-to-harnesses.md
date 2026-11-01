@@ -3,7 +3,7 @@ slug: 2026-w43-billing-controls-from-checklists-to-harnesses
 title: "Billing Controls: From Checklists to Harnesses"
 date: 2026-10-23
 type: essay
-summary: "Agents are starting to touch money. They need the three controls SOX already requires of the people who touch billing inputs, enforced at the tool boundary. No new framework."
+summary: "Agents are starting to touch money. They need the three controls SOX already requires of the people who touch billing inputs, enforced at the tool boundary."
 draft: false
 week: 2026-W43
 ---
@@ -14,19 +14,21 @@ week: 2026-W43
 
 <div class="bluf">
 
-**Bottom line.** Agents are moving from answering to executing. In billing, executing means touching money. Stripe's first answer to agents touching money was not a new framework. It scoped the credential: one business, one amount, one window, revocable, raw card never exposed.[^1] That is a preventive control moved into the token. SOX already requires three kinds of control over the humans who touch billing inputs: preventive, detective, corrective. What can go wrong will. Agents need all three, at the tool boundary. No new framework.
+**Bottom line.** Agents are moving from answering to executing. In billing, executing means touching money. Stripe's first answer to agents touching money was not a new framework. It scoped the credential: one business, one amount, one window, revocable, raw card never exposed.[^1] That is a preventive control moved into the token. SOX already requires three kinds of control over the humans who touch billing inputs: preventive, detective, corrective. Agents need all three, at the tool boundary.
 
 </div>
 
 ## 1. Where the controls go
 
-Ben Thompson's reading of Stripe is that its product is an abstraction layer: a "platform for platforms" that absorbs the complexity of money movement so the businesses above it do not have to.[^2] His rule for infrastructure is that control belongs at the layer closest to the action, with the layers beneath neutral and procedural.[^3]
+Ben Thompson's reading of Stripe is that its product is an abstraction layer: a "platform for platforms" that absorbs the complexity of money movement so the businesses above it do not have to.[^2] His rule for infrastructure, written about content moderation and borrowed here as an analogy, is that responsibility belongs at the layer closest to the action, with the layers beneath neutral and procedural.[^3]
 
 Agentic billing has the same stack. The agent above reasons. The ledger below records. The tool server between them is the layer closest to the action, so it is where the controls live. Stripe reached the same conclusion for payments: "trust can’t be inferred—it has to be explicitly granted, scoped, and enforced in code."[^1]
 
 The inputs are what need controlling. The invoice is arithmetic on price, credit terms, partner feed, tax code, entity, currency, and order of application. In 13 years I have not seen a billing failure caused by the arithmetic.[^4]
 
 ## 2. The control boundary
+
+Two terms carry the rest of this piece. A write's *class* says what it can break: 0, nothing billed; 1, a charge a customer sees; 2, history, balances or payouts. The *releaser* is the identity that approves a drafted write, and it is never the identity that drafted it.
 
 An agent never touches a billing system directly. It calls a tool server. The server enforces authorization, runs a fixed query or write, validates the schema, and logs the call. The protocol (MCP) defines the boundary; the server is the control. An agent with a shell or raw SQL has no boundary.
 
@@ -36,7 +38,7 @@ An agent never touches a billing system directly. It calls a tool server. The se
 <li class="fig-node"><span class="fig-edge">MCP</span><strong>Tool server (the control)</strong><br>1. authorize caller and class<br>2. fixed query or write<br>3. validate schema<br>4. append to log: in, out, caller<br><code>reconcile_<wbr>source_<wbr>to_<wbr>subledger()</code><br><code>credit_issue(cust, amt, ccy, why)</code></li>
 <li class="fig-group"><span class="fig-edge fig-edge--stacked">by class</span><ol class="fig-lanes">
 <li class="fig-node fig-node--plain"><strong>Class 0: execute</strong><br>nothing billed can change</li>
-<li class="fig-node"><strong>Class 1: draft</strong><br>staging store<br>releaser R, never drafter<br>under limit: auto, capped, sampled</li>
+<li class="fig-node"><strong>Class 1: draft</strong><br>staging store<br>a releaser, never the drafter<br>under limit: auto, capped, sampled</li>
 <li class="fig-node fig-node--ink"><strong>Class 2: human only</strong><br>reconcile before post<br>kill switch armed</li>
 </ol></li>
 <li class="fig-node"><strong>Billing systems</strong><br>rating, invoicing, balances, ledger</li>
@@ -53,7 +55,7 @@ Writes are classed by what they can break. Class lives in the credential, not a 
 | 1 | A charge a customer sees | Agent drafts; a different identity releases | $40 goodwill credit; new SKU |
 | 2 | History, balances, partner payouts, journal mapping | Human only; reconciliation before post | Change the order credits apply |
 
-**Example, Class 1.** The agent calls `credit_issue(cust, 40, USD, reason)`. It lands in staging. Releaser identity R, never the drafter, approves. Both identities are in the log. Under finance's approval limit (say $50), the agent releases itself, capped at $5,000 a day, with 1 in 20 sampled daily. Above it, a human releases.
+**Example, Class 1.** The agent calls `credit_issue(cust, 40, USD, reason)`. It lands in staging. A releaser, never the drafter, approves. Both identities are in the log. Under finance's approval limit (say $50), the agent releases itself, capped at $5,000 a day, with 1 in 20 sampled daily. Above it, a human releases.
 
 ## 3. The SOX map: three control types, each with an agent analog
 
@@ -122,4 +124,4 @@ Release mode changes with evidence; class never does. Two clean quarters let fin
 
 [^4]: Sample: enterprise order-to-cash and hardware-plus-subscription (Dynamics, NetSuite, SAP S/4HANA, Oracle, in-house billing platforms). Not high-volume self-serve; section 2's approval limit exists for that case. Control terms follow [PCAOB AS 2201](https://pcaobus.org/oversight/standards/auditing-standards/details/AS2201) and [COSO 2013](https://www.coso.org/guidance-on-ic).
 
-[^5]: Two incidents a month apart on one usage-billed AI company's public status page, [1 September](https://status.claude.com/incidents/620swtqyn24k) and [1 October 2026](https://status.claude.com/incidents/k0h22tsvnydg): purchased credits were slow to reach account balances, "resulting in some requests failing for insufficient credit balance." Cause unknown to me.
+[^5]: Two incidents a month apart on Anthropic's public status page, [1 September](https://status.claude.com/incidents/620swtqyn24k) and [1 October 2026](https://status.claude.com/incidents/k0h22tsvnydg): purchased credits were slow to reach account balances, "resulting in some requests failing for insufficient credit balance." That is the failure the daily balance reconciliation above is meant to catch; the cause is unknown to me.

@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/jamesshintech/jamesshin.tech/actions/workflows/ci.yml/badge.svg)](https://github.com/jamesshintech/jamesshin.tech/actions/workflows/ci.yml)
 
-The source of [jamesshin.tech](https://jamesshin.tech): four products I built and shipped alone, each shown by a recording of the real app, then my essays.
+The source of [jamesshin.tech](https://jamesshin.tech): who I am and the role I want, a billing-controls work sample, four products I built and shipped alone (each shown by a recording of the real app), and my essays.
 
 Every route, including the OG image, is prerendered at build time. There are no cookies, analytics or client-side tracking, and first-load JavaScript stays at Next.js's own baseline (about 102 kB shared, 106 kB for the home page).
 
@@ -16,7 +16,7 @@ Every route, including the OG image, is prerendered at build time. There are no 
 
 ## What the tests guard
 
-29 Playwright tests, run with no retries so a flaky test fails instead of passing on its second try. The 20 in [`e2e/site.spec.ts`](e2e/site.spec.ts) drive a browser; in CI they run against the production build (`next start`). The 9 in [`e2e/writing.unit.spec.ts`](e2e/writing.unit.spec.ts) test the essay pipeline directly. They cover:
+30 Playwright tests, run with no retries so a flaky test fails instead of passing on its second try. The 21 in [`e2e/site.spec.ts`](e2e/site.spec.ts) drive a browser; in CI they run against the production build (`next start`). The 9 in [`e2e/writing.unit.spec.ts`](e2e/writing.unit.spec.ts) test the essay pipeline directly. They cover:
 
 - **Layout at real widths.** The product grid is 4 across on desktop and 2 on phones, with no sideways scroll at 320, 390 or 1440px. The nav stays on one row and the name never wraps, from 320 to 1440px.
 - **Essay rendering.** Figures and tables fit at 320, 390, 520, 820 and 1440px. That check forbids mid-word breaks, so a word that does not fit shows up as overflow instead of being silently split.
