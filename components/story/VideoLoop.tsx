@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Loop } from "@/data/projects";
+import { isMotionPaused, subscribeMotion } from "@/lib/motion";
 
 // A recording of the real app. Nothing loads until the panel nears the
-// viewport; it plays while on screen and pauses off it. Under reduced
-// motion the poster frame shows with a Play control instead.
+// viewport; it plays while on screen and pauses off it, and stays paused
+// while the visitor has paused motion. Under reduced motion the poster frame
+// shows with a Play control instead, which then becomes a Pause control (the
+// same button, so keyboard focus stays on it).
 
 const QUERY = "(prefers-reduced-motion: reduce)";
 
@@ -24,16 +27,24 @@ export function useReducedMotion(): boolean {
 }
 
 // `href` links the recording itself (hidden from assistive tech, which gets the
-// product name link instead). The reduced-motion Play button is a sibling of
+// product name link instead). The reduced-motion control is a sibling of
 // that link, never inside it, so it stays reachable and never navigates.
 export function VideoLoop({ loop, className = "phone", href }: { loop: Loop; className?: string; href?: string }) {
   const ref = useRef<HTMLVideoElement>(null);
   const reduced = useReducedMotion();
   const [wantsPlay, setWantsPlay] = useState(false);
+  const paused = useSyncExternalStore(subscribeMotion, isMotionPaused, () => false);
 
   useEffect(() => {
     const v = ref.current;
-    if (!v || (reduced && !wantsPlay)) return;
+    if (!v) return;
+    // Under reduced motion only an explicit Play runs the loop, and the
+    // visitor's own Play outranks the page-wide pause.
+    const allowed = reduced ? wantsPlay : !paused;
+    if (!allowed) {
+      v.pause();
+      return;
+    }
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
@@ -49,7 +60,7 @@ export function VideoLoop({ loop, className = "phone", href }: { loop: Loop; cla
     );
     io.observe(v);
     return () => io.disconnect();
-  }, [reduced, wantsPlay]);
+  }, [reduced, wantsPlay, paused]);
 
   const video = (
     <video
@@ -77,9 +88,9 @@ export function VideoLoop({ loop, className = "phone", href }: { loop: Loop; cla
       ) : (
         video
       )}
-      {reduced && !wantsPlay && (
-        <button type="button" className="btn play" onClick={() => setWantsPlay(true)}>
-          Play {loop.seconds}s loop
+      {reduced && (
+        <button type="button" className="btn play" aria-pressed={wantsPlay} onClick={() => setWantsPlay((w) => !w)}>
+          {wantsPlay ? "Pause loop" : `Play ${loop.seconds}s loop`}
         </button>
       )}
     </div>

@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { test, expect } from "@playwright/test";
 
 // Privacy and leftovers check. Until the 2026-10-23 relaunch this site was
@@ -66,12 +68,27 @@ test.describe("home", () => {
     for (const meta of await page.locator("p.tile-meta").allTextContents()) expect(meta).toMatch(/^Live · /);
     await expect(page.locator("#yonmoku p.tile-meta")).toHaveText("Live · Oct 2026 · iOS");
 
-    // Concise: no static images, and the whole main column (name, one line,
-    // two labelled work samples with the PDF's provenance note, four products,
-    // the essay list) under 220 words. The budget keeps pitch copy off the page.
+    // Concise: no static images, and the main column's own copy (name, one
+    // line, two labelled work samples with the PDF's provenance note, four
+    // products, the essay list) under 220 words. The budget keeps pitch copy
+    // off the page. Lists that only repeat links to what is already on the
+    // page (the Contents, the closing) are marked data-wordcount="skip" and
+    // left out; they cannot carry pitch copy because they hold only links.
     expect(await page.locator("img").count()).toBe(0);
-    const words = await page.locator("main").evaluate((m) => (m as HTMLElement).innerText.trim().split(/\s+/).filter(Boolean).length);
+    const words = await page.locator("main").evaluate((m) => {
+      const copy = m.cloneNode(true) as HTMLElement;
+      copy.querySelectorAll("[data-wordcount='skip']").forEach((e) => e.remove());
+      document.body.appendChild(copy);
+      const n = copy.innerText.trim().split(/\s+/).filter(Boolean).length;
+      copy.remove();
+      return n;
+    });
     expect(words).toBeLessThan(220);
+    // What is skipped really is only links and their labels.
+    const skipped = await page.locator("main [data-wordcount='skip']").evaluateAll((els) =>
+      els.every((e) => Array.from(e.querySelectorAll("p, li")).every((n) => n.querySelector("a, button") || n.classList.contains("contents-h") || n.closest(".contents-head"))),
+    );
+    expect(skipped, "skipped blocks hold only links").toBe(true);
 
     await expect(page.locator(".essays li.essay")).toHaveCount(2);
 
@@ -104,7 +121,9 @@ test.describe("home", () => {
 
   test("the tiles are recordings and links only: no playable round", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator("main button, main dialog")).toHaveCount(0);
+    // The one button in main is the pause-motion switch (WCAG 2.2.2).
+    await expect(page.locator("main dialog")).toHaveCount(0);
+    await expect(page.locator("main button:not(.motion-toggle)")).toHaveCount(0);
     await expect(page.getByText(/play a round/i)).toHaveCount(0);
   });
 
@@ -136,6 +155,9 @@ test.describe("home", () => {
     await expect(samples.nth(1)).toHaveAttribute("href", "/work/finance-data-studio.pdf");
     await expect(samples.nth(1)).toContainText("Finance Data Studio");
     await expect(samples.nth(1)).toContainText("PDF, 12 pages");
+    // The label carries the file's real size, read at build time.
+    const mb = (fs.statSync(path.join(process.cwd(), "public/work/finance-data-studio.pdf")).size / 1e6).toFixed(1);
+    await expect(samples.nth(1)).toContainText(`PDF, 12 pages, ${mb} MB`);
     await expect(page.locator(".sample-note")).toHaveText("Written for an enterprise-architect interview at Reddit, September 2026, from public information.");
     const pdf = await request.get("/work/finance-data-studio.pdf");
     expect(pdf.status()).toBe(200);
@@ -186,6 +208,147 @@ test.describe("home", () => {
     expect(quiet.beam).toBe("none");
     expect(quiet.reveals.every((r) => r === "shown")).toBe(true);
     await still.close();
+  });
+
+  test("a chapter's title is fully up before the chapter is, and stays up when the reader stops mid-slide", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const p = await ctx.newPage();
+    await p.goto("/");
+    await p.evaluate(() => document.fonts.ready);
+    for (const slug of ["squeeze", "vitality-weeks", "highschooltrends"]) {
+      // Stop with the chapter's top 30% down the viewport: most of it is on
+      // screen, still sliding over the one before.
+      const top = await p.locator(`#${slug}`).evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
+      await p.evaluate((y) => window.scrollTo(0, y), Math.round(top - 0.3 * 900));
+      await p.waitForTimeout(400);
+      const pieces = await p.locator(`#${slug} h2 .sr-piece`).evaluateAll((els) => els.map((e) => Number(getComputedStyle(e).opacity)));
+      expect(Math.min(...pieces), `${slug} title opacity mid-slide`).toBeGreaterThan(0.95);
+    }
+    await ctx.close();
+  });
+
+  test("a pause switch stops everything that moves on its own, keeps focus, and is remembered", async ({ browser }) => {
+    for (const [w, h, where] of [[1440, 900, ".rail .motion-toggle"], [390, 844, ".contents .motion-toggle"]] as const) {
+      const ctx = await browser.newContext({ viewport: { width: w, height: h } });
+      const p = await ctx.newPage();
+      await p.goto("/");
+      const toggle = p.locator(where);
+      await expect(toggle, `switch visible at ${w}px`).toBeVisible();
+      await expect(p.locator(".motion-toggle:visible"), `one switch at ${w}px`).toHaveCount(1);
+      const video = p.locator("#yonmoku video");
+      await expect.poll(() => video.evaluate((v: HTMLVideoElement) => !v.paused), { message: "plays before pausing" }).toBe(true);
+
+      await toggle.focus();
+      await p.keyboard.press("Enter");
+      await expect(toggle).toHaveAttribute("aria-pressed", "true");
+      await expect(toggle).toHaveText(/play motion/i);
+      await expect(toggle).toBeFocused();
+      await expect(p.locator("html")).toHaveAttribute("data-motion", "paused");
+      await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused), { message: "recording paused" }).toBe(true);
+      expect(await p.locator("#yonmoku .beam").evaluate((e) => getComputedStyle(e, "::after").animationPlayState)).toBe("paused");
+
+      // Remembered across a reload, before anything starts moving.
+      await p.reload();
+      await expect(p.locator("html")).toHaveAttribute("data-motion", "paused");
+      await p.waitForTimeout(800);
+      expect(await video.evaluate((v: HTMLVideoElement) => v.paused), "still paused after reload").toBe(true);
+
+      await p.locator(where).click();
+      await expect(p.locator("html")).not.toHaveAttribute("data-motion", "paused");
+      await expect.poll(() => video.evaluate((v: HTMLVideoElement) => !v.paused), { message: "plays again" }).toBe(true);
+      await ctx.close();
+    }
+  });
+
+  test("the rail leads back to the intro, names its chapters, and Contents marks nothing when nothing is pinned", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const p = await ctx.newPage();
+    await p.goto("/");
+    const rail = p.locator("nav.rail a");
+    await expect(rail.first()).toHaveAccessibleName("00 Intro");
+    await expect(rail.nth(2)).toHaveAccessibleName("02 Squeeze");
+    await p.locator("nav.rail a[href='#squeeze']").click();
+    await expect.poll(() => p.evaluate(() => window.scrollY)).toBeGreaterThan(900);
+    await rail.first().click();
+    await expect.poll(() => p.evaluate(() => window.scrollY), { message: "back at the intro" }).toBeLessThan(5);
+    await p.waitForTimeout(300);
+    expect(await p.locator(".samples").evaluate((e) => Number(getComputedStyle(e.closest(".c0-a")!).opacity)), "work samples visible again").toBe(1);
+    await expect(p.locator("nav.rail li.is-current a")).toHaveAccessibleName("00 Intro");
+
+    // The rail never paints over a chapter, even while a hover label widens it.
+    const top = await p.locator("#squeeze").evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
+    await p.evaluate((y) => window.scrollTo(0, y), Math.round(top - 0.3 * 900));
+    await p.waitForTimeout(400);
+    await p.locator("nav.rail a[href='#vitality-weeks']").hover();
+    const covered = await p.locator("#squeeze h2 .sr-word").evaluateAll((words) =>
+      words.filter((w) => {
+        const r = w.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.right - 4, r.top + r.height / 2);
+        return !hit || !w.contains(hit);
+      }).map((w) => w.textContent),
+    );
+    expect(covered, "title words hidden under the rail").toEqual([]);
+    await ctx.close();
+
+    const phone = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const q = await phone.newPage();
+    await q.goto("/");
+    await expect(q.locator(".contents li.is-current")).toHaveCount(0);
+    await phone.close();
+  });
+
+  test("the page closes on the two work samples and the ways to get in touch", async ({ page }) => {
+    await page.goto("/");
+    const closing = page.locator(".closing");
+    const top = await page.locator(".samples a.btn").evaluateAll((els) => els.map((e) => e.getAttribute("href")));
+    const end = await closing.locator(".closing-list a").evaluateAll((els) => els.map((e) => e.getAttribute("href")));
+    expect(end).toEqual(top);
+    await expect(closing.locator("a[href^='mailto:']")).toHaveText("Contact me");
+    await expect(closing.getByRole("link", { name: "LinkedIn" })).toHaveAttribute("href", "https://www.linkedin.com/in/jamesshin2");
+  });
+
+  test("the colophon's every claim links to a file in this repo that exists", async ({ page }) => {
+    await page.goto("/");
+    const hrefs = await page.locator("footer .colophon a").evaluateAll((els) => els.map((e) => e.getAttribute("href") ?? ""));
+    expect(hrefs.length).toBeGreaterThanOrEqual(3);
+    for (const href of hrefs) {
+      const m = href.match(/^https:\/\/github\.com\/jamesshintech\/jamesshin\.tech\/blob\/main\/(.+)$/);
+      expect(m, `${href} points into this repo`).not.toBeNull();
+      expect(fs.existsSync(path.join(process.cwd(), m![1])), `${m![1]} exists`).toBe(true);
+    }
+    await expect(page.locator("footer .colophon")).toContainText("No cookies, no analytics");
+  });
+
+  test("every page starts with a skip link to its one main landmark, and the 404 page leads home", async ({ page, request }) => {
+    for (const p of ["/", "/writing", BILLING]) {
+      await page.goto(p);
+      await page.keyboard.press("Tab");
+      const skip = page.locator(":focus");
+      await expect(skip, `${p} first Tab stop`).toHaveText("Skip to content");
+      await expect(skip).toHaveAttribute("href", "#main");
+      await expect(page.locator("main"), `${p} has one main`).toHaveCount(1);
+      await expect(page.locator("main#main")).toHaveCount(1);
+    }
+    expect((await request.get("/no-such-page")).status()).toBe(404);
+    await page.goto("/no-such-page");
+    await expect(page.locator("main#main h1")).toHaveText("Nothing here.");
+    await expect(page.locator("main").getByRole("link", { name: "Go to the home page" })).toHaveAttribute("href", "/");
+    await expect(page.locator(".nav .brand")).toBeVisible();
+  });
+
+  test("essay prose uses typographer's quotes, never straight ones", async ({ page }) => {
+    for (const p of [BILLING, MOAT]) {
+      await page.goto(p);
+      const straight = await page.locator(".prose p, .prose li, .prose td, .prose blockquote").evaluateAll((els) =>
+        els.flatMap((e) => {
+          const copy = e.cloneNode(true) as HTMLElement;
+          copy.querySelectorAll("code, figure, pre").forEach((c) => c.remove());
+          const t = copy.textContent ?? "";
+          return /["']/.test(t) ? [t.slice(0, 80)] : [];
+        }),
+      );
+      expect(straight, `${p} straight quotes in prose`).toEqual([]);
+    }
   });
 
   test("the essay quotes without narrating who it quotes", async ({ request }) => {
@@ -255,8 +418,16 @@ test.describe("recordings", () => {
         await expect(play).toBeVisible();
         await p.waitForTimeout(800);
         expect(await playing(), "holds the poster under reduced motion").toBe(false);
-        await play.click();
+        await play.focus();
+        await p.keyboard.press("Enter");
         await expect.poll(playing, { message: "plays once asked" }).toBe(true);
+        // The same button becomes Pause, and focus stays on it.
+        const control = tile.locator(".loop .play");
+        await expect(control).toHaveText("Pause loop");
+        await expect(control).toBeFocused();
+        await p.keyboard.press("Enter");
+        await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused), { message: "pauses when asked" }).toBe(true);
+        await expect(control).toHaveText(/^Play \d+s loop$/);
         // The button sits outside the recording's link: pressing it must not open the store.
         expect(ctx.pages(), "Play opened another page").toHaveLength(1);
       }

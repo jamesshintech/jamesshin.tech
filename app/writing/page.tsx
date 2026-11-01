@@ -39,7 +39,7 @@ export default function WritingIndex() {
           </p>
         </div>
       </header>
-      <main>
+      <main id="main">
         <div className="g" style={{ paddingBottom: 64 }}>
           <ul className="archive">
             {posts.map((p) => (

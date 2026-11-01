@@ -60,13 +60,20 @@ const personJsonLd = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    // The home page adds one class to <html> before first paint (its pin
-    // gate), so the client's className never matches the server's exactly.
+    // The home page adds a class (its pin gate) and maybe data-motion (the
+    // visitor's saved pause) to <html> before first paint, so the client's
+    // attributes never match the server's exactly.
     <html lang="en" className={`${grotesk.variable} ${mono.variable}`} suppressHydrationWarning>
       <head>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(personJsonLd) }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {/* The first Tab stop: past the nav (and the home page's chapter rail) to the content. */}
+        <a className="skip-link" href="#main">
+          Skip to content
+        </a>
+        {children}
+      </body>
     </html>
   );
 }

@@ -65,3 +65,27 @@ test.describe("jsonLd", () => {
     expect(JSON.parse(out).name).toBe("</script><script>alert(1)</script>");
   });
 });
+
+test.describe("smart quotes", () => {
+  test("curls quotes and apostrophes in prose, and leaves code, raw HTML and link targets alone", async () => {
+    const md = [
+      'He said "trust can\'t be inferred" and left.',
+      "",
+      'A *"quoted"* word, `"code" stays`, and [a "link"](https://example.com/?q="x").',
+      "",
+      '<figure class="fig"><ol><li>Raw "html"</li></ol></figure>',
+      "",
+      "It's the team's call.",
+    ].join("\n");
+    const post = parsePost("q.md", essay(valid, md));
+    const { html } = await renderPostHtml(post);
+    expect(html).toContain("He said “trust can’t be inferred” and left.");
+    expect(html).toContain("<em>“quoted”</em>");
+    expect(html).toContain('<code>"code" stays</code>');
+    expect(html).toContain("a “link”");
+    // The link target keeps its straight quotes (however the renderer encodes them).
+    expect(html).not.toMatch(/href="[^"]*(\u201c|\u201d|%E2%80%9C|%E2%80%9D)/);
+    expect(html).toContain('<figure class="fig"><ol><li>Raw "html"</li></ol></figure>');
+    expect(html).toContain("It’s the team’s call.");
+  });
+});

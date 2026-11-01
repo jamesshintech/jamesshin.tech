@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { useReducedMotion } from "@/components/story/VideoLoop";
+import { isMotionPaused, subscribeMotion } from "@/lib/motion";
 
 // React Bits "Threads" (Backgrounds/Threads/Threads.tsx), hand-ported to
 // Canvas 2D after the E3 mockup. The source's vertex maths is kept line for
@@ -18,6 +19,7 @@ import { useReducedMotion } from "@/components/story/VideoLoop";
 // it draws one still frame and never animates. With `pauseWhenCovered`, it
 // also stops while its chapter ([data-chapter]) is `inert`, which the home
 // page's scroll engine sets once a later chapter has slid fully over it.
+// It also holds its current frame while the visitor has paused motion.
 
 const S = {
   color: "242, 239, 230",
@@ -127,6 +129,8 @@ function render(ctx: CanvasRenderingContext2D, st: State) {
 export function Threads({ className, pauseWhenCovered = false }: { className?: string; pauseWhenCovered?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const reduced = useReducedMotion();
+  const paused = useSyncExternalStore(subscribeMotion, isMotionPaused, () => false);
+  const still = reduced || paused;
 
   useEffect(() => {
     const canvas = ref.current;
@@ -154,7 +158,7 @@ export function Threads({ className, pauseWhenCovered = false }: { className?: s
 
     const frame = (now: number) => {
       raf = 0;
-      if (!onScreen || covered || document.hidden || reduced) return;
+      if (!onScreen || covered || document.hidden || still) return;
       const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
       last = now;
       st.time += dt * S.speed;
@@ -163,7 +167,7 @@ export function Threads({ className, pauseWhenCovered = false }: { className?: s
     };
 
     const wake = () => {
-      if (!raf && onScreen && !covered && !document.hidden && !reduced) {
+      if (!raf && onScreen && !covered && !document.hidden && !still) {
         last = 0;
         raf = requestAnimationFrame(frame);
       }
@@ -197,7 +201,7 @@ export function Threads({ className, pauseWhenCovered = false }: { className?: s
       document.removeEventListener("visibilitychange", wake);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [reduced, pauseWhenCovered]);
+  }, [still, pauseWhenCovered]);
 
   return <canvas ref={ref} className={className} aria-hidden="true" />;
 }

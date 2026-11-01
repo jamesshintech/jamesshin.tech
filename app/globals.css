@@ -414,10 +414,16 @@ video {
   display: flex;
   flex-direction: column;
 }
+.contents-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: var(--rule);
+}
 .contents-h {
   margin: 0;
   padding-bottom: 8px;
-  border-bottom: var(--rule);
 }
 .contents ol {
   flex: 1;
@@ -780,6 +786,20 @@ video {
   display: grid;
   row-gap: 4px;
 }
+/* The rail's own box never takes the pointer, and each link is only as wide
+   as its label, so a widened rail (a hover label) never blocks a click on the
+   chapter beside it. */
+.rail {
+  pointer-events: none;
+}
+.rail li {
+  display: flex;
+  justify-content: flex-end;
+}
+.rail a,
+.rail button {
+  pointer-events: auto;
+}
 .rail a {
   display: flex;
   align-items: center;
@@ -788,6 +808,44 @@ video {
   min-height: 44px;
   padding: 0 4px 0 12px;
   text-decoration: none;
+}
+/* A ground behind the number only, so a chapter's rule sliding under the
+   rail never strikes through a label; the rail itself stays transparent. */
+.rail-num {
+  background: var(--ground);
+  padding: 0 3px;
+}
+/* Chapter names and the pause label: shown on hover or keyboard focus, so the
+   rail stays a slim column of numbers beside the recordings. Always in the
+   accessible name (clipped, never display: none). */
+.rail-name,
+.rail-toggle .toggle-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.rail a:hover .rail-name,
+.rail a:focus-visible .rail-name,
+.rail-toggle:hover .toggle-label,
+.rail-toggle:focus-visible .toggle-label {
+  position: static;
+  width: auto;
+  height: auto;
+  clip-path: none;
+  background: var(--ground);
+  padding: 2px 6px;
+}
+/* Higher specificity than .motion-toggle (defined later), whose opaque
+   ground would otherwise paint a box over whatever the rail sits beside. */
+.rail .rail-toggle {
+  display: flex;
+  margin: 12px 0 0 auto;
+  justify-content: flex-end;
+  background: transparent;
+  padding-right: 6px;
 }
 .rail a::after {
   content: "";
@@ -833,6 +891,9 @@ video {
   .js-story .rail,
   .js-story .progress {
     display: block;
+  }
+  .js-story .contents-toggle {
+    display: none;
   }
   .js-story .chapter {
     position: sticky;
@@ -948,6 +1009,22 @@ video {
   text-decoration-thickness: 1px;
   text-decoration-color: var(--cream-55);
   text-underline-offset: 0.28em;
+}
+.footer .colophon {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+  font-size: 12px;
+  color: var(--cream-55);
+}
+.footer .colophon li {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.footer .colophon a {
+  color: var(--cream-70);
 }
 .footer a:hover {
   text-decoration-color: var(--cream);
@@ -1572,12 +1649,138 @@ video {
   }
 }
 
+/* ─── Pause motion (WCAG 2.2.2): lib/motion.ts, components/home/MotionToggle.tsx ───
+   One switch stops what moves on its own: the recordings, the threads, the
+   beam. A mono label with a drawn glyph (two bars, or a triangle). */
+.motion-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 4px;
+  background: var(--ground);
+  border: 0;
+  color: var(--cream-70);
+  cursor: pointer;
+  font-family: var(--mono);
+}
+.motion-toggle:hover {
+  color: var(--cream);
+}
+.motion-glyph {
+  display: inline-block;
+  width: 9px;
+  height: 10px;
+  flex: none;
+}
+.motion-glyph[data-state="playing"] {
+  border-left: 3px solid currentColor;
+  border-right: 3px solid currentColor;
+}
+.motion-glyph[data-state="paused"] {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 5px 0 5px 9px;
+  border-color: transparent transparent transparent currentColor;
+}
+/* Same specificity as `.chapter.is-current .beam::after`, whose animation
+   shorthand would otherwise reset the play state to running. */
+html[data-motion="paused"] .beam::after,
+html[data-motion="paused"] .chapter.is-current .beam::after {
+  animation-play-state: paused;
+}
+
+/* ─── The close: back to the work samples, then contact ─── */
+.closing {
+  display: grid;
+  gap: 12px;
+  padding: 24px 0 8px;
+  border-top: var(--rule);
+}
+.closing-h {
+  margin: 0;
+  font-weight: 500;
+}
+.closing-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.closing-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 16px;
+}
+.closing-list a {
+  display: inline-block;
+  padding: 10px 0;
+  font-size: 20px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.closing-list a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.28em;
+}
+.closing-contact {
+  display: flex;
+  gap: 24px;
+  margin: 0;
+}
+.closing-contact a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--cream-55);
+  text-underline-offset: 0.28em;
+}
+
+/* ─── Skip link: the first Tab stop, visible only when focused ─── */
+.skip-link {
+  position: fixed;
+  left: 12px;
+  top: 12px;
+  z-index: 100;
+  padding: 10px 14px;
+  background: var(--cream);
+  color: var(--ink);
+  font-weight: 500;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+.skip-link:focus-visible {
+  transform: none;
+}
+
+/* ─── 404 ─── */
+.not-found .g {
+  display: grid;
+  gap: 16px;
+  padding-top: 96px;
+  padding-bottom: 96px;
+}
+.not-found .line a {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.28em;
+}
+
 /* ─── Motion: reduced-motion first ───
    No pins (the pinned query needs motion), the beam stops, nothing rises
    (and nothing is ever hidden), the threads canvas draws one still frame
    (components/home/Threads.tsx). */
 @media (prefers-reduced-motion: reduce) {
   .beam::after {
+    display: none;
+  }
+  .motion-toggle {
     display: none;
   }
   .rise-c,

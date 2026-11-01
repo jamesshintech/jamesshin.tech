@@ -64,6 +64,7 @@ export default async function PostPage({ params }: Props) {
     <div className="reader">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(articleJsonLd) }} />
       <Nav current="writing" />
+      <main id="main">
       <article>
         <header>
           <div className="g">
@@ -109,6 +110,7 @@ export default async function PostPage({ params }: Props) {
           </nav>
         )}
       </article>
+      </main>
       <Footer />
     </div>
   );

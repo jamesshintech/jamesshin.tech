@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { isMotionPaused } from "@/lib/motion";
 
 // The scroll engine for the home page's chapters. It renders nothing and
 // attaches to the server-rendered story ([data-story]).
@@ -22,10 +23,12 @@ import { useEffect } from "react";
 //     caption beside the pinned recording;
 //   - each title: React Bits ScrollReveal "rise" (TextAnimations/ScrollReveal),
 //     words clipped and lifted from 100%, opacity from 0.1, easeOut, stagger
-//     0.05 over a 0.5 span;
+//     0.05 over a 0.5 span. The title rises first, while the chapter's top
+//     moves from 85% to 50% of the viewport, so a reader who stops mid-slide
+//     always sees the name of what is sliding in;
 //   - each tagline: Magic UI text-reveal (text-reveal.tsx), word i lit over
-//     [i/n, (i+1)/n]; the source's 0.3 ghost under a live copy is one span at
-//     0.25 + 0.75 * t, which composites to the same thing;
+//     [i/n, (i+1)/n], after the title; the source's 0.3 ghost under a live
+//     copy is one span at 0.25 + 0.75 * t, which composites to the same thing;
 //   - Magic UI scroll-progress (scroll-progress.tsx), the rail and the Contents.
 
 const MOTION = "(prefers-reduced-motion: no-preference)";
@@ -36,6 +39,13 @@ const ITEM_SCALE = 0.05;
 const DIM = 0.5;
 const RISE_SPAN = 0.5;
 const RISE_GAP = 0.05;
+// The title rises while the chapter's top travels from 85% to 50% of the viewport.
+const TITLE_FROM = 0.85;
+const TITLE_TO = 0.5;
+// Rail index for the intro (name, line, work samples) before Yonmoku's caption.
+const INTRO = -1;
+// No chapter marked: the stacked layout, where nothing is pinned or current.
+const NONE = -2;
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const easeOut = (v: number) => 1 - Math.pow(1 - v, 3);
@@ -81,7 +91,7 @@ export function ScrollStory() {
       videos: all<HTMLVideoElement>(el, "video"),
     }));
     const railItems = all<HTMLElement>(document, "[data-rail]");
-    const geo = { navH: 65, pinH: 800, maxScroll: 1, tops: [] as number[], holds: [] as number[], essaysTop: 0 };
+    const geo = { navH: 65, pinH: 800, vh: 900, maxScroll: 1, tops: [] as number[], holds: [] as number[], essaysTop: 0 };
     const cache = new Map<string, string>();
     const write = (key: string, value: string, apply: (v: string) => void) => {
       if (cache.get(key) === value) return;
@@ -92,9 +102,13 @@ export function ScrollStory() {
     let pinned = false;
     let current = -1;
 
+    // `cur` is a rail index: INTRO, 0 to 3 for the products, 4 for the essays,
+    // or NONE. The intro belongs to chapter 0, so chapter 0 stays current (and
+    // keeps its beam) while the rail marks the intro.
     const markCurrent = (cur: number, aria: boolean) => {
       current = cur;
-      chapters.forEach((c, i) => c.el.classList.toggle("is-current", i === cur));
+      const chapter = cur === INTRO ? 0 : cur;
+      chapters.forEach((c, i) => c.el.classList.toggle("is-current", i === chapter));
       for (const li of railItems) {
         const on = Number(li.dataset.rail) === cur;
         li.classList.toggle("is-current", on);
@@ -107,24 +121,26 @@ export function ScrollStory() {
       c.el.inert = covered;
       for (const v of c.videos) {
         if (covered) v.pause();
-        else if (v.preload !== "none") v.play().catch(() => {}); // only one VideoLoop has already started
+        // Only a VideoLoop that has already started, and never against the visitor's pause.
+        else if (v.preload !== "none" && !isMotionPaused()) v.play().catch(() => {});
       }
     };
 
-    const paintCopy = (c: Chapter, i: number, q: number) => {
-      const at = q * (RISE_SPAN + Math.max(0, c.pieces.length - 1) * RISE_GAP);
+    // `qt` drives the title (and the chapter mark and foot), `qw` the tagline.
+    const paintCopy = (c: Chapter, i: number, qt: number, qw: number) => {
+      const at = qt * (RISE_SPAN + Math.max(0, c.pieces.length - 1) * RISE_GAP);
       c.pieces.forEach((piece, j) => {
         const t = clamp01((at - j * RISE_GAP) / RISE_SPAN);
         write(`p${i}.${j}`, t.toFixed(3), () => paintRise(piece, t));
       });
       const n = c.words.length;
       c.words.forEach((w, j) => {
-        const t = clamp01((q - j / n) * n);
+        const t = clamp01((qw - j / n) * n);
         write(`w${i}.${j}`, t.toFixed(3), () => {
           w.style.opacity = t >= 1 ? "" : (0.25 + 0.75 * t).toFixed(3);
         });
       });
-      const e = easeOut(q);
+      const e = easeOut(qt);
       c.fades.forEach((el, j) =>
         write(`f${i}.${j}`, e.toFixed(3), () => {
           el.style.opacity = e >= 1 ? "" : e.toFixed(3);
@@ -138,7 +154,7 @@ export function ScrollStory() {
       if (!pinned) return;
       const y = window.scrollY;
       write("sp", (y / geo.maxScroll).toFixed(4), (v) => progress.style.setProperty("--sp", v));
-      let cur = 0;
+      let cur = INTRO;
       chapters.forEach((c, i) => {
         const start = geo.tops[i] - geo.navH;
         const hold = geo.holds[i];
@@ -164,9 +180,16 @@ export function ScrollStory() {
             caption.style.transform = q >= 1 ? "" : `translateY(${((1 - easeOut(q)) * 40).toFixed(1)}px)`;
             caption.style.pointerEvents = q >= 0.5 ? "auto" : "";
           });
-          paintCopy(c, i, q);
+          // The caption swaps in over the same scroll; its title leads its tagline.
+          paintCopy(c, i, clamp01(q * 2), q);
+          if (p >= 0.35) cur = 0;
         } else {
-          paintCopy(c, i, clamp01((y - (start - 0.3 * geo.pinH)) / (0.3 * geo.pinH + 0.5 * hold)));
+          // Scroll positions where this chapter's top sits at 85%, then 50%, of the viewport.
+          const from = geo.tops[i] - TITLE_FROM * geo.vh;
+          const to = geo.tops[i] - TITLE_TO * geo.vh;
+          const qt = clamp01((y - from) / (to - from));
+          const qw = clamp01((y - to) / Math.max(1, start + 0.5 * hold - to));
+          paintCopy(c, i, qt, qw);
           if (y >= start - 0.5 * geo.pinH) cur = i;
         }
       });
@@ -181,6 +204,7 @@ export function ScrollStory() {
     // Layout reads happen here, on resize and font load only.
     const measure = () => {
       geo.navH = nav.offsetHeight;
+      geo.vh = window.innerHeight;
       geo.pinH = chapters[0].el.offsetHeight;
       geo.holds = chapters.map((c) => parseFloat(getComputedStyle(c.el).marginBottom) || 0);
       let acc = story.getBoundingClientRect().top + window.scrollY;
@@ -203,7 +227,7 @@ export function ScrollStory() {
       const styled = [intro, caption, ...chapters.flatMap((c) => [c.inner, c.grid, ...c.pieces, ...c.words, ...c.fades])];
       for (const el of styled) el.removeAttribute("style");
       for (const c of chapters) c.el.inert = false;
-      markCurrent(0, false);
+      markCurrent(NONE, false);
     };
 
     const evaluate = () => {
@@ -218,6 +242,7 @@ export function ScrollStory() {
     // Where a chapter settles: its copy fully revealed.
     const settledY = (id: string): number | null => {
       if (id === "essays") return geo.essaysTop - geo.navH;
+      if (id === "intro") return geo.tops[0] - geo.navH;
       const i = chapters.findIndex((c) => c.el.id === id);
       return i < 0 ? null : geo.tops[i] - geo.navH + geo.holds[i] * (i === 0 ? 0.85 : 0.6);
     };

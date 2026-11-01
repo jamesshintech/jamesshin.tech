@@ -30,6 +30,8 @@ export const siteConfig = {
       note: "Written for an enterprise-architect interview at Reddit, September 2026, from public information.",
     },
   ] as WorkSample[],
+  // The site's own source, linked from the footer colophon.
+  repo: "https://github.com/jamesshintech/jamesshin.tech",
   socials: {
     github: "https://github.com/jamesshintech" as string | null,
     linkedin: "https://www.linkedin.com/in/jamesshin2",

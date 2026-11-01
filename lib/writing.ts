@@ -160,9 +160,46 @@ export function remarkScrollableTables() {
   return (tree: MdNode) => wrap(tree);
 }
 
+const OPENS = /[\s([{\u2014\u2013/\u201c\u2018-]/;
+
+/**
+ * Typographer's quotes in prose: "a" becomes “a” and it's becomes it’s.
+ * Straight quotes render as slanted closing marks in the site's grotesk, so a
+ * quotation reads as ”a”. Only text nodes change: code,
+ * inline code, raw HTML (the figures) and link targets keep their characters.
+ * The character before a quote decides its side, carried across nodes in
+ * document order so a quote that opens before *emphasis* still opens.
+ */
+export function remarkSmartQuotes() {
+  let prev = " ";
+  const curl = (text: string) => {
+    let out = "";
+    for (const ch of text) {
+      if (ch === '"') out += OPENS.test(prev) ? "\u201c" : "\u201d";
+      else if (ch === "'") out += OPENS.test(prev) ? "\u2018" : "\u2019";
+      else out += ch;
+      prev = ch;
+    }
+    return out;
+  };
+  const walk = (node: MdNode) => {
+    if (node.type === "text" && typeof node.value === "string") node.value = curl(node.value);
+    else if (node.type === "inlineCode" || node.type === "code") prev = "x";
+    else if (node.type === "html") prev = " ";
+    if (node.children) for (const child of node.children) walk(child);
+    // A block ends a line of prose: the next quote opens.
+    if (node.type === "paragraph" || node.type === "heading" || node.type === "listItem" || node.type === "tableCell") prev = " ";
+  };
+  return (tree: MdNode) => {
+    prev = " ";
+    walk(tree);
+  };
+}
+
 export async function renderPostHtml(post: Post): Promise<PostWithHtml> {
   const processed = await remark()
     .use(remarkGfm)
+    .use(remarkSmartQuotes)
     .use(remarkScrollableTables)
     // Raw HTML is kept on purpose: essays are authored here (figures, the bottom-line box), never user input.
     .use(remarkHtml, { sanitize: false })

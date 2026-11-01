@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import Link from "next/link";
@@ -7,6 +9,7 @@ import { VideoLoop } from "@/components/story/VideoLoop";
 import { Threads } from "@/components/home/Threads";
 import { Reveal } from "@/components/home/Reveal";
 import { ScrollStory } from "@/components/home/ScrollStory";
+import { MotionToggle } from "@/components/home/MotionToggle";
 import { absoluteUrl, siteConfig } from "@/data/config";
 import { getProjects, type Project } from "@/data/projects";
 import { getAllPosts } from "@/lib/writing";
@@ -21,8 +24,15 @@ export const metadata: Metadata = {
 // on when JavaScript runs and motion is wanted, so the class below is set
 // before first paint (no layout shift once the engine loads), and taken off
 // again if the engine never starts. Without it the chapters are plain
-// stacked sections.
-const PIN_GATE = `(function(){var d=document.documentElement;if(!matchMedia("(prefers-reduced-motion: no-preference)").matches)return;d.classList.add("js-story");setTimeout(function(){if(!document.querySelector("[data-story][data-ready]"))d.classList.remove("js-story")},6000)})();`;
+// stacked sections. It also restores the visitor's "pause motion" choice
+// (lib/motion.ts) before first paint, so nothing starts moving and stops.
+const PIN_GATE = `(function(){var d=document.documentElement;try{if(localStorage.getItem("motion-paused")==="1")d.setAttribute("data-motion","paused")}catch(e){}if(!matchMedia("(prefers-reduced-motion: no-preference)").matches)return;d.classList.add("js-story");setTimeout(function(){if(!document.querySelector("[data-story][data-ready]"))d.classList.remove("js-story")},6000)})();`;
+
+/** "4.1 MB": the size of a file under public/, read at build time so the label never drifts from the file. */
+function fileSize(href: string): string {
+  const bytes = fs.statSync(path.join(process.cwd(), "public", href)).size;
+  return bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1e3))} kB`;
+}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
@@ -164,21 +174,36 @@ export default function Home() {
       <Nav current="home" />
       <div className="progress" aria-hidden="true" />
 
-      {/* The chapter rail: where you are, and every chapter one click away. */}
+      {/* The chapter rail: where you are, and every chapter one click away,
+          including the way back to the intro and its work samples. Names show
+          beside the numbers on wide screens and on hover or focus elsewhere;
+          they are always in the accessible name. */}
       <nav className="rail" aria-label="Chapters">
         <ol>
+          <li data-rail={-1} className="is-current">
+            <a className="mono" href="#intro">
+              <span className="rail-num">00</span> <span className="rail-name">Intro</span>
+            </a>
+          </li>
           {chapterLinks.map((c, i) => (
-            <li key={c.href} data-rail={i} className={i === 0 ? "is-current" : undefined}>
-              <a className="mono" href={c.href} aria-label={c.name}>
-                {i < projects.length ? pad2(i + 1) : c.short}
+            <li key={c.href} data-rail={i}>
+              <a className="mono" href={c.href}>
+                {i < projects.length ? (
+                  <>
+                    <span className="rail-num">{pad2(i + 1)}</span> <span className="rail-name">{c.short}</span>
+                  </>
+                ) : (
+                  <span className="rail-num">{c.short}</span>
+                )}
               </a>
             </li>
           ))}
         </ol>
+        <MotionToggle className="rail-toggle" />
       </nav>
 
-      <main id="work">
-        <div className="story" data-story>
+      <main id="main">
+        <div className="story" id="work" data-story>
           {/* Chapter 0: the name, the line, both work samples, the first product. */}
           <section id={first.slug} className="chapter c0 is-current" data-chapter tabIndex={-1} aria-labelledby="intro-h">
             <div className="chapter-inner">
@@ -199,7 +224,7 @@ export default function Home() {
               <Threads className="threads" pauseWhenCovered />
 
               <div className="g chapter-grid">
-                <div className="c0-a">
+                <div className="c0-a" id="intro">
                   <h1 id="intro-h" className="c0-h" aria-label={siteConfig.name}>
                     <span aria-hidden="true">
                       <Rise text={siteConfig.name} by="char" each={0.03} />
@@ -232,7 +257,9 @@ export default function Home() {
                           <a href={s.href} className="btn" type="application/pdf">
                             <span className="sample-kind">
                               <span className="mono">Work sample</span>
-                              <span className="mono">PDF, {s.pages} pages</span>
+                              <span className="mono">
+                                PDF, {s.pages} pages, {fileSize(s.href)}
+                              </span>
                             </span>
                             <span className="sample-title">
                               <Chevroned text={s.title} />
@@ -256,11 +283,14 @@ export default function Home() {
                   <Meta p={first} />
                 </div>
 
-                <nav className="contents enter" style={{ "--d": 0.6 } as CSSProperties} aria-label="Contents">
-                  <p className="contents-h mono">Contents</p>
+                <nav className="contents enter" style={{ "--d": 0.6 } as CSSProperties} aria-label="Contents" data-wordcount="skip">
+                  <div className="contents-head">
+                    <p className="contents-h mono">Contents</p>
+                    <MotionToggle className="contents-toggle" />
+                  </div>
                   <ol>
                     {chapterLinks.map((c, i) => (
-                      <li key={c.href} data-rail={i} className={i === 0 ? "is-current" : undefined}>
+                      <li key={c.href} data-rail={i}>
                         <a href={c.href}>
                           <span className="mono">{pad2(i + 1)}</span>
                           <span className="contents-name">{c.name}</span>
@@ -333,6 +363,46 @@ export default function Home() {
                   </li>
                 ))}
               </Reveal>
+
+              {/* The close: back to the two work samples the page opened with,
+                  then the two ways to get in touch. Existing labels only. */}
+              <section className="closing" aria-labelledby="closing-h" data-wordcount="skip">
+                <h2 id="closing-h" className="closing-h mono">
+                  Work samples
+                </h2>
+                <ul className="closing-list">
+                  {siteConfig.workSamples.map((s) => {
+                    if (s.kind === "essay") {
+                      const post = posts.find((p) => p.slug === s.slug);
+                      if (!post) return null;
+                      return (
+                        <li key={s.slug}>
+                          <Link href={`/writing/${post.slug}`}>
+                            <Chevroned text={post.title} />
+                          </Link>
+                          <span className="mono">Essay · {post.readingMinutes} min</span>
+                        </li>
+                      );
+                    }
+                    return (
+                      <li key={s.href}>
+                        <a href={s.href} type="application/pdf">
+                          <Chevroned text={s.title} />
+                        </a>
+                        <span className="mono">
+                          PDF, {s.pages} pages, {fileSize(s.href)}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="closing-contact">
+                  <a href={`mailto:${siteConfig.contactEmail}`}>Contact me</a>
+                  <a href={siteConfig.socials.linkedin} target="_blank" rel="noopener noreferrer">
+                    LinkedIn
+                  </a>
+                </p>
+              </section>
             </div>
           </section>
         </div>
