@@ -300,6 +300,11 @@ video {
   letter-spacing: -0.03em;
   margin: 0;
 }
+/* The role, under the name: a fact, so mono. */
+.c0-role {
+  margin: 16px 0 0;
+  color: var(--cream-70);
+}
 .intro-line {
   margin: 20px 0 0;
   max-width: 62ch;
@@ -1353,9 +1358,10 @@ video {
      comes before anything that moves. This matches the DOM (and so the tab)
      order. */
   .c0 .chapter-grid {
-    grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto auto auto minmax(0, 1fr);
     grid-template-areas:
       "h1 h1"
+      "role role"
       "line line"
       "samples samples"
       "contents contents"
@@ -1375,6 +1381,10 @@ video {
   .c0-h {
     grid-area: h1;
     font-size: clamp(48px, 13vw, 64px);
+  }
+  .c0-role {
+    grid-area: role;
+    margin-top: 0;
   }
   .intro-line {
     grid-area: line;

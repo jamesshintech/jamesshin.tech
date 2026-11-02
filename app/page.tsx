@@ -135,6 +135,7 @@ export default function Home() {
                   <h1 id="intro-h" className="c0-h">
                     {siteConfig.name}
                   </h1>
+                  <p className="c0-role mono">{siteConfig.role}</p>
                   <p className="intro-line">{siteConfig.intro}</p>
                   <ul className="samples" aria-label="Work samples">
                     {siteConfig.workSamples.map((s) => {

@@ -151,6 +151,11 @@ test.describe("home", () => {
   test("the hero is the name, one line of background, and two labelled work samples", async ({ page, request }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("James Shin");
+    // The role sits between the name and the line: generic, never an employer.
+    await expect(page.locator(".c0-role")).toHaveText("Business and finance systems leader");
+    const [h1Box, roleBox, lineBox] = await page.locator(".c0-h, .c0-role, .intro-line").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
+    expect(roleBox.top, "role under the name").toBeGreaterThanOrEqual(h1Box.bottom);
+    expect(lineBox.top, "line under the role").toBeGreaterThanOrEqual(roleBox.bottom);
     await expect(page.locator(".intro-line")).toContainText("13 years in finance systems");
     await expect(page.locator(".intro-line")).toContainText("On the side, I build games and small apps.");
     const samples = page.locator(".samples a.btn");
@@ -187,6 +192,10 @@ test.describe("home", () => {
     const phone = await page.context().browser()!.newContext({ viewport: { width: 390, height: 844 } });
     const pp = await phone.newPage();
     await pp.goto("/");
+    // The role keeps its place on a phone too: under the name, above the line.
+    const [ph1, prole, pline] = await pp.locator(".c0-h, .c0-role, .intro-line").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
+    expect(prole.top, "role under the name on a phone").toBeGreaterThanOrEqual(ph1.bottom);
+    expect(pline.top, "line under the role on a phone").toBeGreaterThanOrEqual(prole.bottom);
     const [lastSample, contents, firstFrame] = await pp.locator(".samples li:last-child, .contents, #yonmoku .frame").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
     expect(lastSample.bottom, "samples above the first recording on a phone").toBeLessThanOrEqual(firstFrame.top);
     // The Contents, with the pause switch, sits between them: an index before
@@ -443,6 +452,7 @@ test.describe("home", () => {
     const json = JSON.parse(ld ?? "{}");
     expect(json["@type"]).toBe("Person");
     expect(json.name).toBe("James Shin");
+    expect(json.jobTitle).toBe("Business and finance systems leader");
     expect(json.url).toBe("https://jamesshin.tech/");
     expect(json.sameAs).toEqual(["https://github.com/jamesshintech", "https://www.linkedin.com/in/jamesshin2"]);
     // The JS mark (also the X profile picture) is the Person image, a real square PNG.

@@ -37,7 +37,7 @@ export default function OGImage() {
           <span style={{ fontSize: 30, lineHeight: 1.35, color: CREAM_70, maxWidth: 920 }}>{siteConfig.intro}</span>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 24, color: CREAM_70, paddingTop: 20, borderTop: `1px solid ${RULE}` }}>
-          <span>Four products, all live · Essays</span>
+          <span>Four products, all live · Writing</span>
           <span style={{ color: CREAM }}>{siteConfig.domain}</span>
         </div>
       </div>

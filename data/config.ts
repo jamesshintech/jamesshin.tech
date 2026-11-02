@@ -12,8 +12,10 @@ export type WorkSample =
 export const siteConfig = {
   domain: "jamesshin.tech",
   name: "James Shin",
-  // One line, used in the Person JSON-LD and the OG image header.
-  role: "Finance systems",
+  // One line: under the name on the home page, the Person JSON-LD jobTitle
+  // and the OG image header. Generic by choice; the site never names an
+  // employer (the owner's call, 2026-11-02).
+  role: "Business and finance systems leader",
   contactEmail: "jjhlee92@gmail.com",
   // The line under the name on the home page.
   intro:
