@@ -81,8 +81,8 @@ export const projects: Project[] = [
       poster: "/video/vtw-loop.webp",
       width: 602,
       height: 1310,
-      seconds: 12,
-      alt: "Vitality Weeks: the grid of weeks with lived weeks filled in, a reflection row and an At Your Age fact card.",
+      seconds: 15,
+      alt: "Vitality Weeks 1.6: a pixel walker strolls beneath this decade's grid of weeks, waves when tapped, hops toward a Run a 10K flag, and one tap closes the week.",
     },
   },
   {
