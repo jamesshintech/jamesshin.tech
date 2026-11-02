@@ -175,7 +175,13 @@ test.describe("home", () => {
     const pdf = await request.get("/work/finance-data-studio.pdf");
     expect(pdf.status()).toBe(200);
     expect(pdf.headers()["content-type"]).toContain("application/pdf");
-    expect((await pdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
+    const bytes = await pdf.body();
+    expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
+    // Its own title says what it is, not whose interview it was for (Keynote
+    // writes the file name there). Its uncompressed bytes pass the same scan
+    // as every page.
+    expect(bytes.toString("latin1")).toMatch(/\/Title\s*\(Finance Data Studio\)/);
+    expectClean(bytes.toString("latin1"), "the proposal PDF");
     // On a phone both samples sit above the first recording, so a recruiter
     // reaches them without scrolling past a full-height video.
     const phone = await page.context().browser()!.newContext({ viewport: { width: 390, height: 844 } });
@@ -334,6 +340,36 @@ test.describe("home", () => {
     await ctx.close();
   });
 
+  test("the Contents label and the pause switch sit on one baseline", async ({ browser }) => {
+    // The switch sits beside Contents where Contents is a block (phones and
+    // unpinned layouts); pinned desktops carry it on the rail instead.
+    for (const width of [320, 390]) {
+      const ctx = await browser.newContext({ viewport: { width, height: 900 } });
+      const p = await ctx.newPage();
+      await p.goto("/");
+      await p.evaluate(() => document.fonts.ready);
+      await expect(p.locator(".contents-head .motion-toggle")).toBeVisible();
+      // Each label's baseline: a zero-size inline-block placed after its last
+      // word sits on the line's baseline, whatever the font size.
+      const baselines = await p.evaluate(() =>
+        [".contents-h", ".contents-head .motion-toggle"].map((sel) => {
+          const el = document.querySelector(sel)!;
+          const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.textContent?.trim() ? 1 : 3) });
+          let last: Node | null = null;
+          for (let n = walker.nextNode(); n; n = walker.nextNode()) last = n;
+          const probe = document.createElement("span");
+          probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
+          last!.parentNode!.insertBefore(probe, last!.nextSibling);
+          const y = probe.getBoundingClientRect().top;
+          probe.remove();
+          return y;
+        }),
+      );
+      expect(Math.abs(baselines[0] - baselines[1]), `baselines at ${width}px: ${baselines}`).toBeLessThanOrEqual(0.5);
+      await ctx.close();
+    }
+  });
+
   test("Contents, the rail and the chapter marks number the same four products", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator(".contents li .mono")).toHaveText(["01", "02", "03", "04"]);
@@ -401,7 +437,7 @@ test.describe("home", () => {
     }
   });
 
-  test("Person JSON-LD is present, names the owner and links the profiles", async ({ page }) => {
+  test("Person JSON-LD is present, names the owner, links the profiles and carries the mark", async ({ page, request }) => {
     await page.goto("/");
     const ld = await page.locator('script[type="application/ld+json"]').first().textContent();
     const json = JSON.parse(ld ?? "{}");
@@ -409,6 +445,13 @@ test.describe("home", () => {
     expect(json.name).toBe("James Shin");
     expect(json.url).toBe("https://jamesshin.tech/");
     expect(json.sameAs).toEqual(["https://github.com/jamesshintech", "https://www.linkedin.com/in/jamesshin2"]);
+    // The JS mark (also the X profile picture) is the Person image, a real square PNG.
+    expect(json.image).toBe("https://jamesshin.tech/jamesshin-mark.png");
+    const mark = await request.get("/jamesshin-mark.png");
+    expect(mark.status()).toBe(200);
+    expect(mark.headers()["content-type"]).toBe("image/png");
+    const png = await mark.body();
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)], "mark is 800x800").toEqual([800, 800]);
     // The footer links the same profiles a visitor can check.
     await expect(page.locator("footer").getByRole("link", { name: "GitHub" })).toHaveAttribute("href", "https://github.com/jamesshintech");
   });
@@ -457,6 +500,32 @@ test.describe("writing", () => {
     await expect(links).toHaveCount(1);
     await expect(links.nth(0)).toContainText("Billing Controls: From Checklists to Harnesses");
     await expect(page.locator(".reader header .line")).toHaveText("1 essay · RSS");
+    // RSS is a link like every other: underlined.
+    const deco = await page.locator(".reader header .line a").evaluate((a) => getComputedStyle(a).textDecorationLine);
+    expect(deco).toContain("underline");
+  });
+
+  test("a link to a reading page shares with the site's preview image", async ({ page }) => {
+    for (const path of ["/writing", BILLING]) {
+      await page.goto(path);
+      const og = await page.locator('meta[property="og:image"]').getAttribute("content");
+      expect(og, `${path} og:image`).toMatch(/^https:\/\/jamesshin\.tech\/opengraph-image/);
+      await expect(page.locator('meta[name="twitter:image"]'), `${path} twitter:image`).toHaveAttribute("content", og!);
+      await expect(page.locator('meta[name="twitter:title"]'), `${path} twitter:title`).toHaveCount(1);
+    }
+  });
+
+  test("a short page keeps its footer at the bottom of the window", async ({ browser }) => {
+    for (const [w, h] of [[1440, 900], [390, 844]]) {
+      const ctx = await browser.newContext({ viewport: { width: w, height: h } });
+      const p = await ctx.newPage();
+      for (const path of ["/writing", "/no-such-page"]) {
+        await p.goto(path);
+        const bottom = await p.locator("footer").evaluate((f) => f.getBoundingClientRect().bottom + window.scrollY);
+        expect(Math.round(bottom), `${path} at ${w}x${h}`).toBeGreaterThanOrEqual(h);
+      }
+      await ctx.close();
+    }
   });
 
   test("reading pages keep one left edge: header, list and essay body", async ({ page }) => {
@@ -486,18 +555,26 @@ test.describe("writing", () => {
 
   test("the billing essay keeps its honest date, bottom line, diagrams, tables and sourced footnotes", async ({ page }) => {
     await page.goto(BILLING);
-    // Dated the day it was written, never backdated; the 2026-11-01 edit
+    // Dated the day it was written, never backdated; the 2026-11-02 edit
     // shows as a revision on the page and in the JSON-LD.
     await expect(page.locator(".reader header .meta")).toContainText("October 23, 2026");
-    await expect(page.locator(".reader header .meta")).toContainText("revised November 1, 2026");
+    await expect(page.locator(".reader header .meta")).toContainText("revised November 2, 2026");
     const lds = (await page.locator('script[type="application/ld+json"]').allTextContents()).map((t) => JSON.parse(t));
     const article = lds.find((ld) => ld["@type"] === "Article");
     expect(article?.datePublished).toBe("2026-10-23");
-    expect(article?.dateModified).toBe("2026-11-01");
+    expect(article?.dateModified).toBe("2026-11-02");
     // No kicker restating the hero's years.
     await expect(page.locator(".prose .byline")).toHaveCount(0);
 
     await expect(page.locator(".prose .bluf")).toContainText("Bottom line.");
+    // Claims a billing or audit reader would check: SOX does not prescribe
+    // control types; the cited Stripe post was not its first agent product;
+    // self-release under the limit is named as the exception it is.
+    await expect(page.locator(".prose")).not.toContainText("SOX already requires");
+    await expect(page.locator(".prose")).not.toContainText("first answer");
+    await expect(page.locator(".prose")).toContainText("compensating control");
+    // The service principal stays on one line in Diagram 1.
+    expect(await page.locator(".prose .fig .nb", { hasText: "svc-billing" }).evaluate((e) => e.getClientRects().length)).toBe(1);
     const figs = page.locator(".prose figure.fig");
     await expect(figs).toHaveCount(2);
     await expect(figs.nth(0).locator("figcaption")).toHaveText(/^Diagram 1\./);
@@ -508,6 +585,9 @@ test.describe("writing", () => {
     // Every table scrolls inside a keyboard-focusable region, never the page.
     await expect(page.locator(".prose table")).toHaveCount(3);
     await expect(page.locator(".prose .table-scroll[tabindex='0'] > table")).toHaveCount(3);
+    // A table wider than the column shows it: a soft edge on the side with more.
+    const bg = await page.locator(".prose .table-scroll").first().evaluate((e) => getComputedStyle(e).backgroundImage);
+    expect(bg.match(/gradient/g)?.length, "scroll-edge gradients").toBe(4);
 
     // Quotes exactly as the sources print them; every footnote but the sample note links out.
     await expect(page.locator(".prose")).toContainText("trust can’t be inferred—it has to be explicitly granted, scoped, and enforced in code.");
@@ -558,6 +638,19 @@ test.describe("writing", () => {
     expect(smText).not.toContain("/desktop");
     expect(smText).not.toContain("jjfisher");
     expect(smText).not.toContain("distribution-moat");
+  });
+});
+
+test.describe("headers", () => {
+  test("every response says how it may be framed, sniffed and referred", async ({ request }) => {
+    for (const path of ["/", "/writing", "/work/finance-data-studio.pdf", "/video/squeeze-loop.mp4"]) {
+      const h = (await request.get(path)).headers();
+      expect(h["x-content-type-options"], path).toBe("nosniff");
+      expect(h["referrer-policy"], path).toBe("strict-origin-when-cross-origin");
+      expect(h["x-frame-options"], path).toBe("DENY");
+      expect(h["content-security-policy"], path).toBe("frame-ancestors 'none'");
+      expect(h["permissions-policy"], path).toBe("camera=(), microphone=(), geolocation=()");
+    }
   });
 });
 

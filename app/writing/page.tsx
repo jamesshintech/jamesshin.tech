@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
-import { absoluteUrl, siteConfig } from "@/data/config";
+import { absoluteUrl, ogImage, siteConfig } from "@/data/config";
 import { getAllPosts } from "@/lib/writing";
 
 export const metadata: Metadata = {
@@ -13,6 +13,13 @@ export const metadata: Metadata = {
     title: `Writing — ${siteConfig.name}`,
     description: `Essays by ${siteConfig.name}.`,
     url: absoluteUrl("/writing"),
+    images: [ogImage],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `Writing — ${siteConfig.name}`,
+    description: `Essays by ${siteConfig.name}.`,
+    images: [ogImage],
   },
 };
 
@@ -35,7 +42,7 @@ export default function WritingIndex() {
           </h1>
           <p className="line">
             {posts.length}{" "}
-            {posts.length === 1 ? "essay" : "essays"} · <Link href="/writing/rss.xml">RSS</Link>
+            {posts.length === 1 ? "essay" : "essays"} · <Link className="lnk" href="/writing/rss.xml">RSS</Link>
           </p>
         </div>
       </header>

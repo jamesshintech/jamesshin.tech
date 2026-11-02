@@ -39,7 +39,7 @@ export const siteConfig = {
   meta: {
     title: "James Shin",
     description:
-      "13 years in finance systems, from contract to ledger. On the side, games and small apps: four products, all live, and essays.",
+      "13 years in finance systems, from contract to ledger. On the side, games and small apps: four products, all live, and an essay.",
   },
   // The date the numbers on the home page were last checked against their
   // sources. Bump it whenever data/projects.ts changes.
@@ -49,3 +49,17 @@ export const siteConfig = {
 export function absoluteUrl(path = "/"): string {
   return `https://${siteConfig.domain}${path}`;
 }
+
+// The site-wide preview card (app/opengraph-image.tsx). A page that sets its
+// own openGraph replaces the inherited one whole, image included, so pages
+// that do must list it again.
+export const ogImage = {
+  url: absoluteUrl("/opengraph-image"),
+  width: 1200,
+  height: 630,
+  alt: `${siteConfig.name} — ${siteConfig.role}`,
+};
+
+// The JS mark (the life-in-weeks grid, this week in amber): the Person
+// JSON-LD image and the profile picture on X. Not drawn on the page.
+export const markImage = absoluteUrl("/jamesshin-mark.png");

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
-import { absoluteUrl, siteConfig } from "@/data/config";
+import { absoluteUrl, ogImage, siteConfig } from "@/data/config";
 import { getAllPosts, getAdjacent, getPostBySlug, renderPostHtml } from "@/lib/writing";
 import { jsonLd } from "@/lib/json-ld";
 
@@ -31,8 +31,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url,
       publishedTime: post.date,
       authors: [siteConfig.name],
+      images: [ogImage],
     },
-    twitter: { card: "summary_large_image", title: post.title, description: post.summary },
+    twitter: { card: "summary_large_image", title: post.title, description: post.summary, images: [ogImage] },
   };
 }
 

@@ -2,9 +2,9 @@
 slug: 2026-w43-billing-controls-from-checklists-to-harnesses
 title: "Billing Controls: From Checklists to Harnesses"
 date: 2026-10-23
-revised: 2026-11-01
+revised: 2026-11-02
 type: essay
-summary: "Agents are starting to touch money. They need the three controls SOX already requires of the people who touch billing inputs, enforced at the tool boundary."
+summary: "Agents are starting to touch money. They need the same controls SOX auditors test on the people who touch billing inputs, enforced at the tool boundary."
 draft: false
 week: 2026-W43
 ---
@@ -13,7 +13,7 @@ week: 2026-W43
 
 <div class="bluf">
 
-**Bottom line.** Agents are moving from answering to executing. In billing, executing means touching money. Stripe's first answer to agents touching money was not a new framework. It scoped the credential: one business, one amount, one window, revocable, raw card never exposed.[^1] That is a preventive control moved into the token. SOX already requires three kinds of control over the humans who touch billing inputs: preventive, detective, corrective. Agents need all three, at the tool boundary.
+**Bottom line.** Agents are moving from answering to executing. In billing, executing means touching money. Stripe's answer to agents paying for things was not a new framework. It scoped the credential: one business, one amount, one window, revocable, raw card never exposed.[^1] That is a preventive control moved into the token. The controls SOX auditors test over the humans who touch billing inputs are preventive and detective, and a failed control needs a corrective response. Agents need all three, at the tool boundary.
 
 </div>
 
@@ -27,13 +27,13 @@ The inputs are what need controlling. The invoice is arithmetic on price, credit
 
 ## 2. The control boundary
 
-Two terms carry the rest of this piece. A write's *class* says what it can break: 0, nothing billed; 1, a charge a customer sees; 2, history, balances or payouts. The *releaser* is the identity that approves a drafted write, and it is never the identity that drafted it.
+Two terms carry the rest of this piece. A write's *class* says what it can break: 0, nothing billed; 1, a charge a customer sees; 2, history, balances or payouts. The *releaser* is the identity that approves a drafted write, and it is never the identity that drafted it, with one bounded exception, below.
 
 An agent never touches a billing system directly. It calls a tool server. The server enforces authorization, runs a fixed query or write, validates the schema, and logs the call. The protocol (MCP) defines the boundary; the server is the control. An agent with a shell or raw SQL has no boundary.
 
 <figure class="fig fig--boundary">
 <ol class="fig-flow fig-flow--wide-row">
-<li class="fig-node fig-node--plain"><strong>Agent</strong><br><code>principal: svc-billing</code><br>scoped role, reviewed quarterly</li>
+<li class="fig-node fig-node--plain"><strong>Agent</strong><br><code>principal: <span class="nb">svc-billing</span></code><br>scoped role, reviewed quarterly</li>
 <li class="fig-node"><span class="fig-edge">MCP</span><strong>Tool server (the control)</strong><br>1. authorize caller and class<br>2. fixed query or write<br>3. validate schema<br>4. append to log: in, out, caller<br><code>reconcile_<wbr>source_<wbr>to_<wbr>subledger()</code><br><code>credit_issue(cust, amt, ccy, why)</code></li>
 <li class="fig-group"><span class="fig-edge fig-edge--stacked">by class</span><ol class="fig-lanes">
 <li class="fig-node fig-node--plain"><strong>Class 0: execute</strong><br>nothing billed can change</li>
@@ -54,14 +54,14 @@ Writes are classed by what they can break. Class lives in the credential, not a 
 | 1 | A charge a customer sees | Agent drafts; a different identity releases | $40 goodwill credit; new SKU |
 | 2 | History, balances, partner payouts, journal mapping | Human only; reconciliation before post | Change the order credits apply |
 
-**Example, Class 1.** The agent calls `credit_issue(cust, 40, USD, reason)`. It lands in staging. A releaser, never the drafter, approves. Both identities are in the log. Under finance's approval limit (say $50), the agent releases itself, capped at $5,000 a day, with 1 in 20 sampled daily. Above it, a human releases.
+**Example, Class 1.** The agent calls `credit_issue(cust, 40, USD, reason)`. It lands in staging. A releaser, never the drafter, approves. Both identities are in the log. Under finance's approval limit (say $50), the agent releases itself. That breaks the drafter-releaser split, so it is a compensating control with its own bounds: a $5,000 daily cap and 1 in 20 sampled by a person each day. Above the limit, a human releases.
 
 ## 3. The SOX map: three control types, each with an agent analog
 
 | Type | SOX control | Humans | Agents |
 |---|---|---|---|
 | Preventive | Access | Role, least privilege, quarterly review | Each agent is a principal with a role, reviewed quarterly; user-invoked agents get on-behalf-of tokens |
-| Preventive | Segregation of duties | Preparer is not approver | Drafter identity is not releaser identity, enforced by the server |
+| Preventive | Segregation of duties | Preparer is not approver | Drafter identity is not releaser identity, enforced by the server; under the limit, capped and sampled instead |
 | Preventive | Change management | Test, approve, deploy by different people | Every tool, prompt, or model version change runs the eval gate, then approval, then segregated deploy |
 | Preventive | Application controls | Edit checks | Fixed query, schema, authorization. Proves shape, not value |
 | Detective | Information produced by entity | Prove the report is complete and accurate | Every tool output carries row counts and control totals before anyone relies on it |

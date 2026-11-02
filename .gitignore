@@ -7,8 +7,6 @@
 next-env.d.ts
 *.tsbuildinfo
 
-# Sentient is fetched at build time (license forbids redistribution)
-
 # tests
 /test-results/
 /playwright-report/

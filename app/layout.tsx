@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { jsonLd } from "@/lib/json-ld";
-import { siteConfig, absoluteUrl } from "@/data/config";
+import { siteConfig, absoluteUrl, markImage } from "@/data/config";
 import "./globals.css";
 
 // One grotesk for everything that is prose or a heading; one mono for
@@ -52,6 +52,7 @@ const personJsonLd = {
   "@type": "Person",
   name: siteConfig.name,
   url: absoluteUrl(),
+  image: markImage,
   email: `mailto:${siteConfig.contactEmail}`,
   jobTitle: siteConfig.role,
   description: siteConfig.meta.description,

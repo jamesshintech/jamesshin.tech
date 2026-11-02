@@ -386,7 +386,10 @@ video {
 }
 .contents-h {
   margin: 0;
-  padding-bottom: 8px;
+  /* The pause switch beside it centres its text (same mono size and line)
+     in a 44px target; the same space under this label puts both on one
+     baseline. */
+  padding-bottom: calc((44px - 1.4em) / 2);
 }
 .contents ol {
   flex: 1;
@@ -813,9 +816,18 @@ video {
   text-decoration-color: var(--cream);
 }
 
-/* ─── Reading pages (/writing) ───
+/* ─── Reading pages (/writing, the 404) ───
    One 720px column: the header, the essay list and the essay body share
-   its left edge. */
+   its left edge. A short page keeps its footer at the bottom of the window. */
+.reader {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100svh;
+}
+.reader > main {
+  flex: 1 0 auto;
+}
 .reader header .g {
   padding-top: 56px;
   padding-bottom: 24px;
@@ -1003,6 +1015,14 @@ video {
 .prose .table-scroll {
   overflow-x: auto;
   margin: 0 0 1.6em;
+  /* A table wider than the column shows that it scrolls: a soft cream edge
+     on whichever side has more, covered by the ground once scrolled there
+     (the "local" layers move with the content, the others stay put). */
+  background:
+    linear-gradient(to right, var(--ground) 40%, transparent) left / 32px 100% no-repeat local,
+    linear-gradient(to left, var(--ground) 40%, transparent) right / 32px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(242, 239, 230, 0.22), transparent) left / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(242, 239, 230, 0.22), transparent) right / 12px 100% no-repeat scroll;
 }
 .prose .table-scroll:focus-visible {
   outline: 2px solid var(--amber);
