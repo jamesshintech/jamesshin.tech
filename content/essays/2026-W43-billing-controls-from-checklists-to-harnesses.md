@@ -2,6 +2,7 @@
 slug: 2026-w43-billing-controls-from-checklists-to-harnesses
 title: "Billing Controls: From Checklists to Harnesses"
 date: 2026-10-23
+revised: 2026-11-01
 type: essay
 summary: "Agents are starting to touch money. They need the three controls SOX already requires of the people who touch billing inputs, enforced at the tool boundary."
 draft: false
@@ -9,8 +10,6 @@ week: 2026-W43
 ---
 
 # Billing Controls: From Checklists to Harnesses
-
-<p class="byline">From 13 years on contract-to-ledger systems.</p>
 
 <div class="bluf">
 
@@ -110,7 +109,7 @@ A passing run is the control operating once. It is not the audit. The auditor sa
 |---|---|
 | Intake | One front door. Class assigned on arrival. 10 classifications a month re-performed independently; disagreement rate published |
 | Launch readiness | Pricing, metering, invoicing-and-tax, and reporting tools each pass their golden set in the billing entity. Reused tools inherit |
-| Promotions and credits | Expiry, application order, currency, refundability, journal entry are tool parameters set before launch. Balance by surface reconciles daily[^5] |
+| Promotions and credits | Expiry, application order, currency, refundability, journal entry are tool parameters set before launch. Balance by surface reconciles daily |
 | Charge pipeline change | Class 1: gate, shadow, rollback. Class 2: adds reconciliation exit, finance sign-off, kill switch |
 | Payments and FX | Calendar-driven. Grant-date rate stored with each credit |
 
@@ -124,4 +123,3 @@ Release mode changes with evidence; class never does. Two clean quarters let fin
 
 [^4]: Sample: enterprise order-to-cash, one-time and recurring charges (Dynamics, NetSuite, SAP S/4HANA, Oracle, in-house billing platforms). Not high-volume self-serve; section 2's approval limit exists for that case. Control terms follow [PCAOB AS 2201](https://pcaobus.org/oversight/standards/auditing-standards/details/AS2201) and [COSO 2013](https://www.coso.org/guidance-on-ic).
 
-[^5]: Two incidents a month apart on Anthropic's public status page, [1 September](https://status.claude.com/incidents/620swtqyn24k) and [1 October 2026](https://status.claude.com/incidents/k0h22tsvnydg): purchased credits were slow to reach account balances, "resulting in some requests failing for insufficient credit balance." That is the failure the daily balance reconciliation above is meant to catch; the cause is unknown to me.

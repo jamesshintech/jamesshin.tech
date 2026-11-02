@@ -227,7 +227,7 @@ video {
 /* ─── Home: the scroll story ───
    Chapter 0 is the name, the line, both work samples, the first recording
    and a Contents index; chapters 1 to 3 are one product each, the recording
-   on alternating sides; chapter 4 is the essays. Pinned mode (further down)
+   on alternating sides; the footer follows the last. Pinned mode (further down)
    makes each chapter sticky, holding for its bottom margin while the next
    slides over it (React Bits ScrollStack slot geometry). Without JavaScript,
    under reduced motion and on phones, the chapters are plain sections. */
@@ -250,8 +250,7 @@ video {
 .chapter:first-child {
   border-top: 0;
 }
-.chapter:focus,
-.essays:focus {
+.chapter:focus {
   outline: none;
 }
 .chapter-inner {
@@ -300,10 +299,6 @@ video {
   line-height: 1;
   letter-spacing: -0.03em;
   margin: 0;
-  /* The rise is clipped to the line box; padding keeps descenders inside the clip. */
-  overflow: hidden;
-  padding-bottom: 0.12em;
-  margin-bottom: -0.12em;
 }
 .intro-line {
   margin: 20px 0 0;
@@ -312,39 +307,7 @@ video {
   line-height: 1.45;
   color: var(--cream-70);
   text-wrap: pretty;
-  overflow: hidden;
-  padding-bottom: 0.12em;
-  margin-bottom: -0.12em;
 }
-/* The entrance: each piece rises once from below its line, then stays put.
-   CSS only, so the page is complete without JavaScript. */
-.rise-wd {
-  display: inline-block;
-  white-space: nowrap;
-}
-.rise-c,
-.rise-w {
-  display: inline-block;
-  animation: rise 0.8s var(--ease-out) both;
-  animation-delay: calc(var(--d, 0) * 1s);
-}
-/* Blocks that follow the name in (React Bits AnimatedContent, mount trigger):
-   y 40 to 0, opacity 0 to 1, 0.8s power3.out, each with its own delay. */
-.enter {
-  animation: rise 0.8s var(--ease-out) both;
-  animation-delay: calc(var(--d, 0) * 1s);
-}
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(40px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
 /* The two work samples, side by side, each a bordered card; the PDF's
    provenance note is printed inside its card, outside the link text. */
 .samples {
@@ -485,19 +448,9 @@ video {
 .ch-name a {
   text-decoration: none;
 }
-/* React Bits ScrollReveal "rise": every word clipped to its line (source
-   RISE_MASK, inset(-1em -1em -0.15em -1em)), the piece inside moves. */
-.sr-word {
-  display: inline-block;
-  clip-path: inset(-1em -1em -0.15em -1em);
-}
-.sr-piece {
-  display: inline-block;
-  overflow-wrap: anywhere;
-}
 /* The title is a link: the last word carries the chevron (drawn from two
    borders, as on every other link to a product), and an underline on hover. */
-.ch-name a > span:last-child .sr-word:last-child .sr-piece::after {
+.ch-name a .nb::after {
   content: "";
   display: inline-block;
   width: 0.14em;
@@ -509,7 +462,7 @@ video {
   vertical-align: middle;
   transform: translateY(-0.04em) rotate(45deg);
 }
-.ch-name a:hover .sr-piece {
+.ch-name a:hover {
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 0.12em;
@@ -620,7 +573,6 @@ video {
 .nb {
   white-space: nowrap;
 }
-.essay-title a .nb::after,
 .btn .nb::after {
   content: "";
   width: 6px;
@@ -634,142 +586,10 @@ video {
   transform: translateY(-1px) rotate(45deg);
 }
 
-/* The light that circles the current chapter's frame (Magic UI border-beam,
-   in CSS): a masked border ring with a gradient square riding its edge, 10s
-   a lap. Only the current chapter's beam shows and runs. */
-.beam {
-  --beam-width: 2px;
-  --beam-size: 120px;
-  --beam-duration: 10s;
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  border: var(--beam-width) solid transparent;
-  -webkit-mask: linear-gradient(#000, #000) padding-box, linear-gradient(#000, #000) border-box;
-  mask: linear-gradient(#000, #000) padding-box, linear-gradient(#000, #000) border-box;
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0;
-  transition: opacity 400ms ease;
-}
-.beam::after {
-  content: "";
-  position: absolute;
-  width: var(--beam-size);
-  aspect-ratio: 1;
-  background: linear-gradient(to left, var(--amber), var(--cream), transparent);
-  offset-path: rect(0 auto auto 0 round var(--beam-size));
-  offset-distance: 0%;
-  animation: border-beam var(--beam-duration) linear infinite;
-  animation-play-state: paused;
-}
-.chapter.is-current .beam {
-  opacity: 1;
-}
-.chapter.is-current .beam::after {
-  animation-play-state: running;
-}
-@keyframes border-beam {
-  from {
-    offset-distance: 0%;
-  }
-  to {
-    offset-distance: 100%;
-  }
-}
-
-/* Ground layers behind chapter 0: a faint 40px grid (static SVG pattern) and
-   the drifting threads canvas, both faded out toward the bottom so they read
-   as one ground. The frame's opaque ink keeps them off the recording. */
-.grid-bg,
-.threads {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-.grid-bg {
-  fill: rgba(242, 239, 230, 0.045);
-  stroke: rgba(242, 239, 230, 0.1);
-  -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 40%, transparent 100%);
-}
-.threads {
-  display: block;
-  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
-}
-
-/* ─── Chapter 4: the essays, a full-width row each ─── */
-.essays {
-  position: relative;
-  z-index: 10;
-  background: var(--ink);
-  border-top: var(--rule);
-  scroll-margin-top: var(--nav-h);
-}
-.essays-inner {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  padding-top: var(--pad);
-  min-height: inherit;
-}
-.essays-h {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin: 0;
-  font-weight: 500;
-}
-.essays-h::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--rule-c);
-}
-.essay-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-}
-.essay {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
-  column-gap: 16px;
-  align-items: center;
-  padding: 28px 0;
-  border-bottom: var(--rule);
-}
-.essay:last-child {
-  border-bottom: 0;
-}
-.essay-title {
-  margin: 0;
-  font-size: clamp(28px, 3.2vw, 44px);
-  font-weight: 500;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-}
-.essay-title a {
-  display: inline-block;
-  padding: 4px 0;
-  text-decoration: none;
-}
-.essay-title a:hover {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.12em;
-}
-
-/* ─── The chapter rail and the progress line (pinned mode only) ───
+/* ─── The chapter rail (pinned mode only) ───
    The rail is the escape hatch: every chapter one click away, the current
-   one marked. The progress line is Magic UI scroll-progress: a fixed bar,
-   origin left, scaleX = page scroll progress, on the nav's bottom edge. */
-.rail,
-.progress {
+   one marked. */
+.rail {
   display: none;
 }
 .rail {
@@ -870,26 +690,12 @@ video {
   background: var(--amber);
   border-color: var(--amber);
 }
-.progress {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: calc(var(--nav-h) - 2px);
-  height: 2px;
-  z-index: 31;
-  background: var(--amber);
-  transform-origin: 0 50%;
-  transform: scaleX(var(--sp, 0));
-  pointer-events: none;
-}
-
 /* ─── Pinned mode ───
    Only with JavaScript (html.js-story, set before first paint by the page),
    motion wanted, and a desktop tall enough for a chapter to fit one screen.
    Must match PINNED in components/home/ScrollStory.tsx. */
 @media (min-width: 901px) and (min-height: 700px) and (prefers-reduced-motion: no-preference) {
-  .js-story .rail,
-  .js-story .progress {
+  .js-story .rail {
     display: block;
   }
   .js-story .contents-toggle {
@@ -903,6 +709,10 @@ video {
   }
   .js-story .c0 {
     margin-bottom: var(--hold0);
+  }
+  /* Nothing slides over the last chapter: no hold, the footer follows it. */
+  .js-story .chapter:last-child {
+    margin-bottom: 0;
   }
   .js-story .chapter:nth-child(2) {
     z-index: 2;
@@ -921,8 +731,7 @@ video {
     height: var(--pin);
     min-height: 0;
   }
-  .js-story .chapter-grid,
-  .js-story .essays-inner {
+  .js-story .chapter-grid {
     padding-right: var(--rail-room);
   }
   /* Chapter 0: the caption waits, invisible but still read by assistive
@@ -943,25 +752,6 @@ video {
     opacity: 0;
     pointer-events: none;
   }
-  /* The essays and the footer share the last screen. */
-  .js-story .essays {
-    min-height: calc(var(--pin) - 140px);
-  }
-  .js-story .essay-list {
-    grid-template-rows: 1fr 1fr;
-  }
-}
-
-/* Scroll reveals (components/home/Reveal.tsx): hidden only once JavaScript
-   runs, shown when the block enters the viewport or after a short guard. */
-[data-reveal="pending"] {
-  opacity: 0;
-  transform: translateY(40px);
-}
-[data-reveal] {
-  transition:
-    opacity 0.8s var(--ease-out),
-    transform 0.8s var(--ease-out);
 }
 
 /* ─── Section headers (reading pages) ─── */
@@ -986,11 +776,20 @@ video {
   justify-content: space-between;
   align-items: center;
   gap: 12px 24px;
+  position: relative;
   padding-top: 24px;
   padding-bottom: 32px;
-  border-top: var(--rule);
   font-size: 15px;
   color: var(--cream-70);
+}
+/* The rule above the footer spans the content column, not the gutters. */
+.footer .g::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: max(var(--gutter), env(safe-area-inset-left, 0px));
+  right: max(var(--gutter), env(safe-area-inset-right, 0px));
+  border-top: var(--rule);
 }
 .footer ul {
   display: flex;
@@ -1010,33 +809,19 @@ video {
   text-decoration-color: var(--cream-55);
   text-underline-offset: 0.28em;
 }
-.footer .colophon {
-  flex-basis: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 24px;
-  font-size: 12px;
-  color: var(--cream-55);
-}
-.footer .colophon li {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-}
-.footer .colophon a {
-  color: var(--cream-70);
-}
 .footer a:hover {
   text-decoration-color: var(--cream);
 }
 
-/* ─── Reading pages (/writing) ─── */
+/* ─── Reading pages (/writing) ───
+   One 720px column: the header, the essay list and the essay body share
+   its left edge. */
 .reader header .g {
   padding-top: 56px;
   padding-bottom: 24px;
   display: grid;
   gap: 14px;
-  max-width: 820px;
+  max-width: calc(720px + 2 * var(--gutter));
 }
 .reader .meta {
   font-family: var(--mono);
@@ -1047,9 +832,9 @@ video {
 }
 .archive {
   list-style: none;
-  margin: 0;
+  margin: 0 auto;
   padding: 0;
-  max-width: 820px;
+  max-width: 720px;
 }
 .archive li {
   border-top: var(--rule);
@@ -1542,21 +1327,23 @@ video {
     row-gap: 16px;
     align-items: start;
   }
-  /* On phones the work samples come straight after the line, before the
-     recording: a recruiter on a phone reaches them without scrolling past a
-     full-height video. This also matches the DOM (and so the tab) order. */
+  /* On phones the work samples come straight after the line, then the
+     Contents with the pause switch, then the recording: a recruiter reaches
+     the samples without scrolling past a full-height video, and the switch
+     comes before anything that moves. This matches the DOM (and so the tab)
+     order. */
   .c0 .chapter-grid {
-    grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto auto minmax(0, 1fr);
     grid-template-areas:
       "h1 h1"
       "line line"
       "samples samples"
+      "contents contents"
       "frame mark"
       "frame meta"
       "frame ."
       "name name"
-      "tag tag"
-      "contents contents";
+      "tag tag";
   }
   .c0-a,
   .c0-b,
@@ -1625,20 +1412,6 @@ video {
   .frame video {
     max-width: none;
   }
-  .essays-inner {
-    padding-top: 24px;
-  }
-  .essay {
-    grid-template-columns: 36px minmax(0, 1fr);
-    row-gap: 4px;
-    padding: 20px 0;
-  }
-  .essay > .mono:last-child {
-    grid-column: 2;
-  }
-  .essay-title {
-    font-size: 24px;
-  }
   .footer {
     margin-top: 32px;
   }
@@ -1650,8 +1423,7 @@ video {
 }
 
 /* ─── Pause motion (WCAG 2.2.2): lib/motion.ts, components/home/MotionToggle.tsx ───
-   One switch stops what moves on its own: the recordings, the threads, the
-   beam. A mono label with a drawn glyph (two bars, or a triangle). */
+   One switch stops what moves on its own: the recordings. A mono label with a drawn glyph (two bars, or a triangle). */
 .motion-toggle {
   display: inline-flex;
   align-items: center;
@@ -1684,64 +1456,6 @@ video {
   border-width: 5px 0 5px 9px;
   border-color: transparent transparent transparent currentColor;
 }
-/* Same specificity as `.chapter.is-current .beam::after`, whose animation
-   shorthand would otherwise reset the play state to running. */
-html[data-motion="paused"] .beam::after,
-html[data-motion="paused"] .chapter.is-current .beam::after {
-  animation-play-state: paused;
-}
-
-/* ─── The close: back to the work samples, then contact ─── */
-.closing {
-  display: grid;
-  gap: 12px;
-  padding: 24px 0 8px;
-  border-top: var(--rule);
-}
-.closing-h {
-  margin: 0;
-  font-weight: 500;
-}
-.closing-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 4px;
-}
-.closing-list li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: 16px;
-}
-.closing-list a {
-  display: inline-block;
-  padding: 10px 0;
-  font-size: 20px;
-  font-weight: 500;
-  text-decoration: none;
-}
-.closing-list a:hover {
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.28em;
-}
-.closing-contact {
-  display: flex;
-  gap: 24px;
-  margin: 0;
-}
-.closing-contact a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-decoration-color: var(--cream-55);
-  text-underline-offset: 0.28em;
-}
-
 /* ─── Skip link: the first Tab stop, visible only when focused ─── */
 .skip-link {
   position: fixed;
@@ -1773,25 +1487,12 @@ html[data-motion="paused"] .chapter.is-current .beam::after {
 }
 
 /* ─── Motion: reduced-motion first ───
-   No pins (the pinned query needs motion), the beam stops, nothing rises
-   (and nothing is ever hidden), the threads canvas draws one still frame
-   (components/home/Threads.tsx). */
+   No pins (the pinned query needs motion), no transitions, and the
+   recordings wait for Play (components/story/VideoLoop.tsx), so the pause
+   switch has nothing to do and is hidden. */
 @media (prefers-reduced-motion: reduce) {
-  .beam::after {
-    display: none;
-  }
   .motion-toggle {
     display: none;
-  }
-  .rise-c,
-  .rise-w,
-  .enter {
-    animation: none;
-  }
-  [data-reveal] {
-    opacity: 1 !important;
-    transform: none !important;
-    transition: none;
   }
   .frame,
   .btn,

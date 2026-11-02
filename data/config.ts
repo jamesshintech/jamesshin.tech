@@ -27,7 +27,7 @@ export const siteConfig = {
       title: "Finance Data Studio: a self-service front door for certified finance data",
       href: "/work/finance-data-studio.pdf",
       pages: 12,
-      note: "Written for an enterprise-architect interview at Reddit, September 2026, from public information.",
+      note: "Interview take-home, September 2026, built from public information.",
     },
   ] as WorkSample[],
   // The site's own source, linked from the footer colophon.

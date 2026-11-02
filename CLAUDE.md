@@ -2,7 +2,7 @@
 
 A one-page work sample: the name, one line of background, two labelled work
 samples, four shipped products (each a recording of the real app, its own
-one-line description and a link), then essays. Next.js 15 App Router,
+one-line description and a link); essays under /writing. Next.js 15 App Router,
 Tailwind v4, TypeScript, pnpm, deployed on Vercel.
 
 ## Commands
@@ -16,8 +16,10 @@ type, amber `#F2B134` only on the current nav item and the work-sample labels;
 Space Grotesk and JetBrains Mono from `next/font/google`. Tokens live in
 `app/globals.css`. The home page is a scroll story: chapter 0 (name, line, work
 samples, Contents, the first product), then one pinned chapter per product,
-then the essays; `components/home/ScrollStory.tsx` drives it with native
-scrolling and nothing follows the pointer. The decisions log in DESIGN.md
+then the footer; `components/home/ScrollStory.tsx` drives it with native
+scrolling. Text is never animated and nothing moves on its own but the
+recordings: no background canvas, lit grid, frame light, progress bar,
+colophon or end-of-page recap (all tried and cut; see the decisions log). The decisions log in DESIGN.md
 records what was tried and cut. Ask before departing from it.
 
 ## Work samples
@@ -25,6 +27,7 @@ records what was tried and cut. Ask before departing from it.
 slug, or a PDF under `public/work/` with its page count and a provenance note
 that says what the document is and where its facts came from. Never present a
 take-home or a proposal as client work; the note is printed under the link.
+Each card carries one line: the essay's summary, or the PDF's provenance.
 
 ## Adding a project
 Edit `data/projects.ts`. The visual is a recording of the real app under
@@ -46,8 +49,8 @@ match the source exactly. Diagrams use the HTML figure component in DESIGN.md
 - No static images: products are recordings, essay diagrams are HTML figures
 - No cookies, analytics or tracking
 - First-load JS within a few kB of Next's baseline (102 kB shared, 108 kB home); Lighthouse 95+
-- No animation libraries: effects are ported by hand into CSS or a small
-  client component, name their source in a comment, and have a static state
+- No animation libraries, and no decorative motion: ported geometry (the
+  pinned chapters follow React Bits ScrollStack) names its source in a comment
   under `prefers-reduced-motion`.
 - The banned-strings check reads private patterns from `BANNED_PATTERNS`
   (CI secret or `.env.local`). Never write those patterns into the repo.

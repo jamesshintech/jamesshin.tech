@@ -34,7 +34,7 @@ export default function WritingIndex() {
             Essays
           </h1>
           <p className="line">
-            Long-form, with the number, the bet and the counter-argument in every piece. {posts.length}{" "}
+            {posts.length}{" "}
             {posts.length === 1 ? "essay" : "essays"} · <Link href="/writing/rss.xml">RSS</Link>
           </p>
         </div>

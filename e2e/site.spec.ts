@@ -40,7 +40,7 @@ const BILLING = "/writing/2026-w43-billing-controls-from-checklists-to-harnesses
 const MOAT = "/writing/2026-w17-the-distribution-moat-in-the-ai-era";
 
 test.describe("home", () => {
-  test("four products, each a recording with a one-liner and a link, one chapter each, then the essays", async ({ page }) => {
+  test("four products, each a recording with a one-liner and a link, one chapter each", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/James Shin/);
 
@@ -69,11 +69,11 @@ test.describe("home", () => {
     await expect(page.locator("#yonmoku p.tile-meta")).toHaveText("Live · Oct 2026 · iOS");
 
     // Concise: no static images, and the main column's own copy (name, one
-    // line, two labelled work samples with the PDF's provenance note, four
-    // products, the essay list) under 220 words. The budget keeps pitch copy
-    // off the page. Lists that only repeat links to what is already on the
-    // page (the Contents, the closing) are marked data-wordcount="skip" and
-    // left out; they cannot carry pitch copy because they hold only links.
+    // line, two labelled work samples with a one-line note each, four
+    // products) under 220 words. The budget keeps pitch copy
+    // off the page. A list that only repeats links to what is already on the
+    // page (the Contents) is marked data-wordcount="skip" and left out; it
+    // cannot carry pitch copy because it holds only links.
     expect(await page.locator("img").count()).toBe(0);
     const words = await page.locator("main").evaluate((m) => {
       const copy = m.cloneNode(true) as HTMLElement;
@@ -90,7 +90,14 @@ test.describe("home", () => {
     );
     expect(skipped, "skipped blocks hold only links").toBe(true);
 
-    await expect(page.locator(".essays li.essay")).toHaveCount(2);
+    // The one essay is the first work sample; the home page lists it once
+    // and leaves the index to Writing.
+    await expect(page.locator("#essays, .essays")).toHaveCount(0);
+    await expect(page.locator(`main a[href='${BILLING}']`)).toHaveCount(1);
+    // The hero is the only place the work samples are listed: nothing at the
+    // end repeats them.
+    await expect(page.locator("main a[href$='.pdf']"), "the PDF is linked once").toHaveCount(1);
+    expect(await page.locator(".closing").count(), "no recap block repeating the hero").toBe(0);
 
     const html = await page.content();
     expectClean(html, "home");
@@ -128,7 +135,7 @@ test.describe("home", () => {
   });
 
   test("contact links to jjhlee92@gmail.com without printing the address, and there is no Log section", async ({ page, request }) => {
-    for (const path of ["/", "/writing", MOAT]) {
+    for (const path of ["/", "/writing", BILLING]) {
       await page.goto(path);
       await expect(page.locator("nav a[href^='mailto:']")).toHaveText("Contact");
       await expect(page.locator("footer a[href^='mailto:']")).toHaveText("Contact me");
@@ -154,11 +161,17 @@ test.describe("home", () => {
     // interview, built from public information. Never presented as client work.
     await expect(samples.nth(1)).toHaveAttribute("href", "/work/finance-data-studio.pdf");
     await expect(samples.nth(1)).toContainText("Finance Data Studio");
-    await expect(samples.nth(1)).toContainText("PDF, 12 pages");
-    // The label carries the file's real size, read at build time.
+    // The label carries the file's real size, read at build time, in the same
+    // "kind · detail" form as the essay's.
     const mb = (fs.statSync(path.join(process.cwd(), "public/work/finance-data-studio.pdf")).size / 1e6).toFixed(1);
-    await expect(samples.nth(1)).toContainText(`PDF, 12 pages, ${mb} MB`);
-    await expect(page.locator(".sample-note")).toHaveText("Written for an enterprise-architect interview at Reddit, September 2026, from public information.");
+    await expect(samples.nth(1)).toContainText(`PDF · 12 pages · ${mb} MB`);
+    await expect(samples.nth(0)).toContainText(/Essay · \d+ min/);
+    // Each card carries one line under its title: the essay's summary, and
+    // the proposal's provenance, which names neither the company nor the role.
+    const notes = page.locator(".sample-note");
+    await expect(notes).toHaveCount(2);
+    await expect(notes.nth(0)).toHaveText(/^Agents are starting to touch money\./);
+    await expect(notes.nth(1)).toHaveText("Interview take-home, September 2026, built from public information.");
     const pdf = await request.get("/work/finance-data-studio.pdf");
     expect(pdf.status()).toBe(200);
     expect(pdf.headers()["content-type"]).toContain("application/pdf");
@@ -168,49 +181,34 @@ test.describe("home", () => {
     const phone = await page.context().browser()!.newContext({ viewport: { width: 390, height: 844 } });
     const pp = await phone.newPage();
     await pp.goto("/");
-    const [lastSample, firstFrame] = await pp.locator(".samples li:last-child, #yonmoku .frame").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
+    const [lastSample, contents, firstFrame] = await pp.locator(".samples li:last-child, .contents, #yonmoku .frame").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
     expect(lastSample.bottom, "samples above the first recording on a phone").toBeLessThanOrEqual(firstFrame.top);
+    // The Contents, with the pause switch, sits between them: an index before
+    // the products, and the switch before anything that moves.
+    expect(contents.top, "Contents after the samples").toBeGreaterThanOrEqual(lastSample.bottom);
+    expect(contents.bottom, "Contents before the first recording").toBeLessThanOrEqual(firstFrame.top);
     await phone.close();
     // No resume on the site, by choice; never a dead link.
     await expect(page.getByRole("link", { name: /resume/i })).toHaveCount(0);
   });
 
-  test("the entrance settles within two seconds, and under reduced motion nothing is hidden or moving", async ({ browser }) => {
-    const moving = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-    const p = await moving.newPage();
+  test("text is drawn solid: no entrance, no reveal, and nothing moves but the recordings", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const p = await ctx.newPage();
     await p.goto("/");
-    await p.waitForTimeout(2000);
-    const settled = await p.locator(".rise-c, .rise-w").evaluateAll((els) =>
-      // A finished `transform: none` keyframe computes to the identity matrix.
-      els.every((e) => getComputedStyle(e).opacity === "1" && /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/.test(getComputedStyle(e).transform)),
+    // Straight after load, before any animation could finish, everything is
+    // already at rest.
+    const busy = await p.evaluate(() =>
+      document.getAnimations().map((a) => (a as CSSAnimation).animationName ?? (a as CSSTransition).transitionProperty ?? "?"),
     );
-    expect(settled, "every risen piece is at rest").toBe(true);
-    await expect(p.locator("canvas.threads")).toHaveCount(1);
-    await expect(p.locator("[data-reveal]").first()).toHaveAttribute("data-reveal", "shown");
-    await moving.close();
-
-    const still = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
-    const q = await still.newPage();
-    await q.goto("/");
-    const quiet = await q.evaluate(() => {
-      const h1 = document.querySelector("h1")!;
-      const piece = document.querySelector(".rise-c")!;
-      const beam = document.querySelector(".beam")!;
-      return {
-        h1: getComputedStyle(h1).opacity,
-        piece: getComputedStyle(piece).animationName,
-        beam: getComputedStyle(beam, "::after").display,
-        reveals: Array.from(document.querySelectorAll("[data-reveal]")).map((e) => e.getAttribute("data-reveal")),
-      };
-    });
-    expect(quiet.h1).toBe("1");
-    expect(quiet.piece).toBe("none");
-    expect(quiet.beam).toBe("none");
-    expect(quiet.reveals.every((r) => r === "shown")).toBe(true);
-    await still.close();
+    expect(busy, "running animations on load").toEqual([]);
+    await expect(p.locator("canvas")).toHaveCount(0);
+    await expect(p.locator(".progress, .beam, .grid-bg, [data-reveal]")).toHaveCount(0);
+    await expect(p.getByRole("heading", { level: 1 })).toHaveCSS("opacity", "1");
+    await ctx.close();
   });
 
-  test("a chapter's title is fully up before the chapter is, and stays up when the reader stops mid-slide", async ({ browser }) => {
+  test("a reader who stops mid-slide sees the incoming chapter's title and tagline whole", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const p = await ctx.newPage();
     await p.goto("/");
@@ -221,8 +219,16 @@ test.describe("home", () => {
       const top = await p.locator(`#${slug}`).evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
       await p.evaluate((y) => window.scrollTo(0, y), Math.round(top - 0.3 * 900));
       await p.waitForTimeout(400);
-      const pieces = await p.locator(`#${slug} h2 .sr-piece`).evaluateAll((els) => els.map((e) => Number(getComputedStyle(e).opacity)));
-      expect(Math.min(...pieces), `${slug} title opacity mid-slide`).toBeGreaterThan(0.95);
+      // Effective opacity of the title, the tagline and every element inside
+      // them (a word span included): the product of its own and every ancestor's.
+      const seen = await p.locator(`#${slug} h2, #${slug} h2 *, #${slug} .ch-tag, #${slug} .ch-tag *`).evaluateAll((els) =>
+        els.map((e) => {
+          let o = 1;
+          for (let n: Element | null = e; n; n = n.parentElement) o *= Number(getComputedStyle(n).opacity);
+          return o;
+        }),
+      );
+      expect(Math.min(...seen), `${slug} title and tagline opacity mid-slide`).toBeGreaterThan(0.95);
     }
     await ctx.close();
   });
@@ -236,6 +242,10 @@ test.describe("home", () => {
       await expect(toggle, `switch visible at ${w}px`).toBeVisible();
       await expect(p.locator(".motion-toggle:visible"), `one switch at ${w}px`).toHaveCount(1);
       const video = p.locator("#yonmoku video");
+      // Recordings play only near the viewport, so every check below brings
+      // the recording into view first: paused must mean paused by the switch.
+      const inView = () => video.evaluate((v) => v.scrollIntoView({ block: "center", behavior: "instant" }));
+      await inView();
       await expect.poll(() => video.evaluate((v: HTMLVideoElement) => !v.paused), { message: "plays before pausing" }).toBe(true);
 
       await toggle.focus();
@@ -244,17 +254,20 @@ test.describe("home", () => {
       await expect(toggle).toHaveText(/play motion/i);
       await expect(toggle).toBeFocused();
       await expect(p.locator("html")).toHaveAttribute("data-motion", "paused");
-      await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused), { message: "recording paused" }).toBe(true);
-      expect(await p.locator("#yonmoku .beam").evaluate((e) => getComputedStyle(e, "::after").animationPlayState)).toBe("paused");
+      await inView();
+      await p.waitForTimeout(800);
+      expect(await video.evaluate((v: HTMLVideoElement) => v.paused), "recording paused while in view").toBe(true);
 
       // Remembered across a reload, before anything starts moving.
       await p.reload();
       await expect(p.locator("html")).toHaveAttribute("data-motion", "paused");
+      await inView();
       await p.waitForTimeout(800);
-      expect(await video.evaluate((v: HTMLVideoElement) => v.paused), "still paused after reload").toBe(true);
+      expect(await video.evaluate((v: HTMLVideoElement) => v.paused), "still paused after reload, in view").toBe(true);
 
       await p.locator(where).click();
       await expect(p.locator("html")).not.toHaveAttribute("data-motion", "paused");
+      await inView();
       await expect.poll(() => video.evaluate((v: HTMLVideoElement) => !v.paused), { message: "plays again" }).toBe(true);
       await ctx.close();
     }
@@ -280,14 +293,16 @@ test.describe("home", () => {
     await p.evaluate((y) => window.scrollTo(0, y), Math.round(top - 0.3 * 900));
     await p.waitForTimeout(400);
     await p.locator("nav.rail a[href='#vitality-weeks']").hover();
-    const covered = await p.locator("#squeeze h2 .sr-word").evaluateAll((words) =>
-      words.filter((w) => {
-        const r = w.getBoundingClientRect();
-        const hit = document.elementFromPoint(r.right - 4, r.top + r.height / 2);
-        return !hit || !w.contains(hit);
-      }).map((w) => w.textContent),
-    );
-    expect(covered, "title words hidden under the rail").toEqual([]);
+    // Probe the right edge of every line box of the title.
+    const covered = await p.locator("#squeeze h2 a").evaluate((a) => {
+      const r = document.createRange();
+      r.selectNodeContents(a);
+      return Array.from(r.getClientRects()).filter((box) => {
+        const hit = document.elementFromPoint(box.right - 4, box.top + box.height / 2);
+        return !hit || !a.contains(hit);
+      }).length;
+    });
+    expect(covered, "title line ends hidden under the rail").toBe(0);
     await ctx.close();
 
     const phone = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -297,26 +312,33 @@ test.describe("home", () => {
     await phone.close();
   });
 
-  test("the page closes on the two work samples and the ways to get in touch", async ({ page }) => {
+  test("the page ends on the last product, then a footer of plain links", async ({ page }) => {
     await page.goto("/");
-    const closing = page.locator(".closing");
-    const top = await page.locator(".samples a.btn").evaluateAll((els) => els.map((e) => e.getAttribute("href")));
-    const end = await closing.locator(".closing-list a").evaluateAll((els) => els.map((e) => e.getAttribute("href")));
-    expect(end).toEqual(top);
-    await expect(closing.locator("a[href^='mailto:']")).toHaveText("Contact me");
-    await expect(closing.getByRole("link", { name: "LinkedIn" })).toHaveAttribute("href", "https://www.linkedin.com/in/jamesshin2");
+    await expect(page.locator("#highschooltrends .ch-next")).toHaveCount(0);
+    await expect(page.locator(".closing, footer .colophon")).toHaveCount(0);
+    const footer = page.locator("footer");
+    await expect(footer.getByRole("link")).toHaveText(["Contact me", "LinkedIn", "GitHub", "RSS"]);
   });
 
-  test("the colophon's every claim links to a file in this repo that exists", async ({ page }) => {
+  test("at the bottom of the page the last chapter meets the footer, with no empty screen between", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const p = await ctx.newPage();
+    await p.goto("/");
+    await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await p.waitForTimeout(300);
+    const [last, footer] = await p.locator("#highschooltrends, footer").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
+    expect(footer.top - last.bottom, "gap between the last chapter and the footer").toBeLessThan(80);
+    expect(last.bottom, "the last chapter is on screen above the footer").toBeGreaterThan(300);
+    // Nothing slides over the last chapter, so it is never dimmed or shrunk.
+    expect(await p.locator("#highschooltrends .chapter-inner").evaluate((e) => getComputedStyle(e).transform)).toBe("none");
+    await ctx.close();
+  });
+
+  test("Contents, the rail and the chapter marks number the same four products", async ({ page }) => {
     await page.goto("/");
-    const hrefs = await page.locator("footer .colophon a").evaluateAll((els) => els.map((e) => e.getAttribute("href") ?? ""));
-    expect(hrefs.length).toBeGreaterThanOrEqual(3);
-    for (const href of hrefs) {
-      const m = href.match(/^https:\/\/github\.com\/jamesshintech\/jamesshin\.tech\/blob\/main\/(.+)$/);
-      expect(m, `${href} points into this repo`).not.toBeNull();
-      expect(fs.existsSync(path.join(process.cwd(), m![1])), `${m![1]} exists`).toBe(true);
-    }
-    await expect(page.locator("footer .colophon")).toContainText("No cookies, no analytics");
+    await expect(page.locator(".contents li .mono")).toHaveText(["01", "02", "03", "04"]);
+    await expect(page.locator("nav.rail .rail-num")).toHaveText(["00", "01", "02", "03", "04"]);
+    await expect(page.locator(".ch-mark")).toHaveText(["01 of 04", "02 of 04", "03 of 04", "04 of 04"]);
   });
 
   test("every page starts with a skip link to its one main landmark, and the 404 page leads home", async ({ page, request }) => {
@@ -337,7 +359,7 @@ test.describe("home", () => {
   });
 
   test("essay prose uses typographer's quotes, never straight ones", async ({ page }) => {
-    for (const p of [BILLING, MOAT]) {
+    for (const p of [BILLING]) {
       await page.goto(p);
       const straight = await page.locator(".prose p, .prose li, .prose td, .prose blockquote").evaluateAll((els) =>
         els.flatMap((e) => {
@@ -349,14 +371,6 @@ test.describe("home", () => {
       );
       expect(straight, `${p} straight quotes in prose`).toEqual([]);
     }
-  });
-
-  test("the essay quotes without narrating who it quotes", async ({ request }) => {
-    const html = await (await request.get(MOAT)).text();
-    expect(html).not.toMatch(/in the words of/i);
-    expect(html).toContain("TL;DR");
-    // Every quotation carries its source as a link.
-    expect((html.match(/— <a href="https:\/\//g) ?? []).length).toBeGreaterThanOrEqual(10);
   });
 
   test("LinkedIn is in the footer at every width and in the nav once it fits; the nav stays one row", async ({ browser }) => {
@@ -437,15 +451,31 @@ test.describe("recordings", () => {
 });
 
 test.describe("writing", () => {
-  test("two essays are published, newest first", async ({ page }) => {
+  test("one essay is published, and the list says only what it holds", async ({ page }) => {
     await page.goto("/writing");
     const links = page.locator("ul.archive a");
-    await expect(links).toHaveCount(2);
+    await expect(links).toHaveCount(1);
     await expect(links.nth(0)).toContainText("Billing Controls: From Checklists to Harnesses");
-    await expect(links.nth(1)).toContainText("The Distribution Moat in the AI Era");
+    await expect(page.locator(".reader header .line")).toHaveText("1 essay · RSS");
   });
 
-  for (const [path, h1] of [[MOAT, "Distribution Moat"], [BILLING, "Billing Controls"]] as const) {
+  test("reading pages keep one left edge: header, list and essay body", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/writing");
+    const [h1, list] = await page.locator(".reader header h1, ul.archive").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().left)));
+    expect(list, "list under the header").toBe(h1);
+    await page.goto(BILLING);
+    const [title, prose] = await page.locator(".reader header h1, .prose").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().left)));
+    expect(prose, "essay body under its title").toBe(title);
+  });
+
+  test("the essay taken off the site sends its old address to the essay list", async ({ request }) => {
+    const res = await request.get(MOAT, { maxRedirects: 0 });
+    expect(res.status()).toBe(307);
+    expect(res.headers()["location"]).toMatch(/\/writing$/);
+  });
+
+  for (const [path, h1] of [[BILLING, "Billing Controls"]] as const) {
     test(`${h1} renders and carries no leftover or private strings`, async ({ page }) => {
       await page.goto(path);
       await expect(page.getByRole("heading", { level: 1 })).toContainText(h1);
@@ -456,10 +486,16 @@ test.describe("writing", () => {
 
   test("the billing essay keeps its honest date, bottom line, diagrams, tables and sourced footnotes", async ({ page }) => {
     await page.goto(BILLING);
-    // Dated the day it was written; never backdated.
+    // Dated the day it was written, never backdated; the 2026-11-01 edit
+    // shows as a revision on the page and in the JSON-LD.
     await expect(page.locator(".reader header .meta")).toContainText("October 23, 2026");
+    await expect(page.locator(".reader header .meta")).toContainText("revised November 1, 2026");
     const lds = (await page.locator('script[type="application/ld+json"]').allTextContents()).map((t) => JSON.parse(t));
-    expect(lds.find((ld) => ld["@type"] === "Article")?.datePublished).toBe("2026-10-23");
+    const article = lds.find((ld) => ld["@type"] === "Article");
+    expect(article?.datePublished).toBe("2026-10-23");
+    expect(article?.dateModified).toBe("2026-11-01");
+    // No kicker restating the hero's years.
+    await expect(page.locator(".prose .byline")).toHaveCount(0);
 
     await expect(page.locator(".prose .bluf")).toContainText("Bottom line.");
     const figs = page.locator(".prose figure.fig");
@@ -476,32 +512,18 @@ test.describe("writing", () => {
     // Quotes exactly as the sources print them; every footnote but the sample note links out.
     await expect(page.locator(".prose")).toContainText("trust can’t be inferred—it has to be explicitly granted, scoped, and enforced in code.");
     const notes = page.locator("section.footnotes li");
-    await expect(notes).toHaveCount(5);
-    await expect(notes.nth(4).locator("a[href^='https://status.claude.com/incidents/']")).toHaveCount(2);
+    await expect(notes).toHaveCount(4);
+    // The essay cites no prospective employer's own incidents.
+    await expect(page.locator(".prose a[href*='status.claude.com'], .prose a[href*='status.openai.com']")).toHaveCount(0);
     const backref = await page.locator("a.data-footnote-backref").first().textContent();
     expect(backref).toBe("↩︎");
-  });
-
-  test("the distribution essay has one diagram per argument step, and the word count ignores them", async ({ page }) => {
-    await page.goto(MOAT);
-    const figs = page.locator(".prose figure.fig");
-    await expect(figs).toHaveCount(3);
-    for (let i = 0; i < 3; i++) await expect(figs.nth(i).locator("figcaption")).toHaveText(new RegExp(`^Figure ${i + 1}\\.`));
-    // Diagram labels are not prose: the count stays what the text alone measures.
-    await expect(page.locator(".reader header .meta")).toContainText("610 words");
-    // Rewritten after first publication: the page and the JSON-LD both say so.
-    await expect(page.locator(".reader header .meta")).toContainText("revised October 23, 2026");
-    const lds = (await page.locator('script[type="application/ld+json"]').allTextContents()).map((t) => JSON.parse(t));
-    const article = lds.find((ld) => ld["@type"] === "Article");
-    expect(article?.datePublished).toBe("2026-04-26");
-    expect(article?.dateModified).toBe("2026-10-23");
   });
 
   test("essay figures and tables fit at phone and desktop widths, with no word squeezed out of its box", async ({ browser }) => {
     for (const w of [320, 390, 520, 820, 1440]) {
       const ctx = await browser.newContext({ viewport: { width: w, height: 900 } });
       const p = await ctx.newPage();
-      for (const path of [BILLING, MOAT]) {
+      for (const path of [BILLING]) {
         await p.goto(path);
         await p.evaluate(() => document.fonts.ready);
         // Forbid mid-word breaks so a word that does not fit shows up as overflow.
@@ -524,7 +546,8 @@ test.describe("writing", () => {
     const rssText = await rss.text();
     expect(rssText).toContain("https://jamesshin.tech/writing/");
     expect(rssText).not.toContain("jjfisher");
-    expect((rssText.match(/<item>/g) ?? []).length).toBe(2);
+    expect((rssText.match(/<item>/g) ?? []).length).toBe(1);
+    expect(rssText).not.toContain("distribution-moat");
     // Figures travel in the feed as plain lists, so feed readers without CSS still get the content.
     expect(rssText).toContain('<figure class="fig');
 
@@ -534,6 +557,7 @@ test.describe("writing", () => {
     expect(smText).not.toContain("/real-estate");
     expect(smText).not.toContain("/desktop");
     expect(smText).not.toContain("jjfisher");
+    expect(smText).not.toContain("distribution-moat");
   });
 });
 

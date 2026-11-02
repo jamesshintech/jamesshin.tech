@@ -1,13 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Metadata } from "next";
-import type { CSSProperties } from "react";
 import Link from "next/link";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
 import { VideoLoop } from "@/components/story/VideoLoop";
-import { Threads } from "@/components/home/Threads";
-import { Reveal } from "@/components/home/Reveal";
 import { ScrollStory } from "@/components/home/ScrollStory";
 import { MotionToggle } from "@/components/home/MotionToggle";
 import { absoluteUrl, siteConfig } from "@/data/config";
@@ -20,7 +17,7 @@ export const metadata: Metadata = {
 
 // The page is a story read at your own pace: chapter 0 is the name, the line,
 // both work samples and the first product; chapters 1 to 3 are one product
-// each; then the essays. Pinning is CSS (`position: sticky`) and only turns
+// each; then the footer. Pinning is CSS (`position: sticky`) and only turns
 // on when JavaScript runs and motion is wanted, so the class below is set
 // before first paint (no layout shift once the engine loads), and taken off
 // again if the engine never starts. Without it the chapters are plain
@@ -62,69 +59,6 @@ function Chevroned({ text }: { text: string }) {
   );
 }
 
-/** The entrance: each character (or word) rises once, staggered. CSS does the
-    rest, so the text is there without JavaScript and under reduced motion. */
-function Rise({ text, by, from = 0, each }: { text: string; by: "char" | "word"; from?: number; each: number }) {
-  const words = text.split(" ");
-  let i = 0;
-  const delay = (): CSSProperties => ({ "--d": from + each * i++ } as CSSProperties);
-  return (
-    <>
-      {words.map((word, w) => (
-        <span key={w}>
-          {w > 0 && " "}
-          {by === "word" ? (
-            <span className="rise-w" style={delay()}>
-              {word}
-            </span>
-          ) : (
-            <span className="rise-wd">
-              {Array.from(word).map((ch, c) => (
-                <span key={c} className="rise-c" style={delay()}>
-                  {ch}
-                </span>
-              ))}
-            </span>
-          )}
-        </span>
-      ))}
-    </>
-  );
-}
-
-/** A chapter title, one clipped piece per word for the scrubbed rise. A long
-    word with dots breaks before its last dot ("HighSchoolTrends" ".org"). */
-function TitleWords({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(" ").map((word, w) => (
-        <span key={w}>
-          {w > 0 && " "}
-          {(word.length > 12 ? word.split(/(?=\.[^.]+$)/) : [word]).map((part, k) => (
-            <span key={k} className="sr-word">
-              <span className="sr-piece">{part}</span>
-            </span>
-          ))}
-        </span>
-      ))}
-    </>
-  );
-}
-
-/** A tagline, one span per word for the scrubbed text reveal. */
-function RevealWords({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(" ").map((word, w) => (
-        <span key={w}>
-          {w > 0 && " "}
-          <span className="tr-word">{word}</span>
-        </span>
-      ))}
-    </>
-  );
-}
-
 function Meta({ p }: { p: Project }) {
   return (
     <p className="tile-meta mono">
@@ -137,12 +71,11 @@ function Meta({ p }: { p: Project }) {
   );
 }
 
-function Recording({ p, className = "", style }: { p: Project; className?: string; style?: CSSProperties }) {
+function Recording({ p }: { p: Project }) {
   return (
-    <figure className={`fig ${className}`.trim()} style={style}>
+    <figure className="fig">
       <div className="frame">
         <VideoLoop loop={p.loop} className="ch-loop" href={p.url} />
-        <div className="beam" aria-hidden="true" />
       </div>
     </figure>
   );
@@ -152,7 +85,7 @@ function Title({ p, id }: { p: Project; id: string }) {
   return (
     <h2 className="ch-name" id={id}>
       <a href={p.url} target="_blank" rel="noopener noreferrer">
-        <TitleWords text={p.name} />
+        <Chevroned text={p.name} />
       </a>
     </h2>
   );
@@ -163,16 +96,12 @@ export default function Home() {
   const [first, ...rest] = projects;
   const posts = getAllPosts();
   const total = pad2(projects.length);
-  const chapterLinks = [
-    ...projects.map((p) => ({ href: `#${p.slug}`, name: p.name, short: p.name.split(":")[0] })),
-    { href: "#essays", name: "Essays", short: "Essays" },
-  ];
+  const chapterLinks = projects.map((p) => ({ href: `#${p.slug}`, name: p.name, short: p.name.split(":")[0] }));
 
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: PIN_GATE }} />
       <Nav current="home" />
-      <div className="progress" aria-hidden="true" />
 
       {/* The chapter rail: where you are, and every chapter one click away,
           including the way back to the intro and its work samples. Names show
@@ -188,13 +117,7 @@ export default function Home() {
           {chapterLinks.map((c, i) => (
             <li key={c.href} data-rail={i}>
               <a className="mono" href={c.href}>
-                {i < projects.length ? (
-                  <>
-                    <span className="rail-num">{pad2(i + 1)}</span> <span className="rail-name">{c.short}</span>
-                  </>
-                ) : (
-                  <span className="rail-num">{c.short}</span>
-                )}
+                <span className="rail-num">{pad2(i + 1)}</span> <span className="rail-name">{c.short}</span>
               </a>
             </li>
           ))}
@@ -207,33 +130,13 @@ export default function Home() {
           {/* Chapter 0: the name, the line, both work samples, the first product. */}
           <section id={first.slug} className="chapter c0 is-current" data-chapter tabIndex={-1} aria-labelledby="intro-h">
             <div className="chapter-inner">
-              <svg className="grid-bg" aria-hidden="true">
-                <defs>
-                  <pattern id="gp" width="40" height="40" patternUnits="userSpaceOnUse" x="-1" y="-1">
-                    <path d="M.5 40V.5H40" fill="none" />
-                  </pattern>
-                </defs>
-                <rect width="100%" height="100%" strokeWidth="0" fill="url(#gp)" />
-                <svg x="-1" y="-1" style={{ overflow: "visible" }}>
-                  <rect strokeWidth="0" width="39" height="39" x="161" y="41" />
-                  <rect strokeWidth="0" width="39" height="39" x="441" y="121" />
-                  <rect strokeWidth="0" width="39" height="39" x="81" y="281" />
-                  <rect strokeWidth="0" width="39" height="39" x="681" y="201" />
-                </svg>
-              </svg>
-              <Threads className="threads" pauseWhenCovered />
-
               <div className="g chapter-grid">
                 <div className="c0-a" id="intro">
-                  <h1 id="intro-h" className="c0-h" aria-label={siteConfig.name}>
-                    <span aria-hidden="true">
-                      <Rise text={siteConfig.name} by="char" each={0.03} />
-                    </span>
+                  <h1 id="intro-h" className="c0-h">
+                    {siteConfig.name}
                   </h1>
-                  <p className="intro-line">
-                    <Rise text={siteConfig.intro} by="word" from={0.15} each={0.02} />
-                  </p>
-                  <ul className="samples enter" style={{ "--d": 0.45 } as CSSProperties} aria-label="Work samples">
+                  <p className="intro-line">{siteConfig.intro}</p>
+                  <ul className="samples" aria-label="Work samples">
                     {siteConfig.workSamples.map((s) => {
                       if (s.kind === "essay") {
                         const post = posts.find((p) => p.slug === s.slug);
@@ -249,6 +152,7 @@ export default function Home() {
                                 <Chevroned text={post.title} />
                               </span>
                             </Link>
+                            <p className="sample-note">{post.summary}</p>
                           </li>
                         );
                       }
@@ -258,7 +162,7 @@ export default function Home() {
                             <span className="sample-kind">
                               <span className="mono">Work sample</span>
                               <span className="mono">
-                                PDF, {s.pages} pages, {fileSize(s.href)}
+                                PDF · {s.pages} pages · {fileSize(s.href)}
                               </span>
                             </span>
                             <span className="sample-title">
@@ -272,18 +176,7 @@ export default function Home() {
                   </ul>
                 </div>
 
-                <Recording p={first} className="enter" style={{ "--d": 0.3 } as CSSProperties} />
-
-                <div className="c0-b">
-                  <p className="ch-mark mono">01 of {total}</p>
-                  <Title p={first} id={`${first.slug}-h`} />
-                  <p className="tile-line ch-tag">
-                    <RevealWords text={first.tagline} />
-                  </p>
-                  <Meta p={first} />
-                </div>
-
-                <nav className="contents enter" style={{ "--d": 0.6 } as CSSProperties} aria-label="Contents" data-wordcount="skip">
+                <nav className="contents" aria-label="Contents" data-wordcount="skip">
                   <div className="contents-head">
                     <p className="contents-h mono">Contents</p>
                     <MotionToggle className="contents-toggle" />
@@ -299,11 +192,21 @@ export default function Home() {
                     ))}
                   </ol>
                 </nav>
+
+                <Recording p={first} />
+
+                <div className="c0-b">
+                  <p className="ch-mark mono">01 of {total}</p>
+                  <Title p={first} id={`${first.slug}-h`} />
+                  <p className="tile-line ch-tag">{first.tagline}</p>
+                  <Meta p={first} />
+                </div>
               </div>
             </div>
           </section>
 
-          {/* Chapters 1 to 3: one product each, the recording on alternating sides. */}
+          {/* Chapters 1 to 3: one product each, the recording on alternating
+              sides; the last has no Next, the footer follows it. */}
           {rest.map((p, i) => {
             const next = chapterLinks[i + 2];
             return (
@@ -324,16 +227,16 @@ export default function Home() {
                       </p>
                       <div className="ch-body">
                         <Title p={p} id={`${p.slug}-h`} />
-                        <p className="tile-line ch-tag">
-                          <RevealWords text={p.tagline} />
-                        </p>
+                        <p className="tile-line ch-tag">{p.tagline}</p>
                       </div>
                       <div className="ch-foot">
                         <Meta p={p} />
-                        <a className="ch-next" href={next.href}>
-                          <span className="mono">Next</span>
-                          <span className="mono">{next.short}</span>
-                        </a>
+                        {next && (
+                          <a className="ch-next" href={next.href}>
+                            <span className="mono">Next</span>
+                            <span className="mono">{next.short}</span>
+                          </a>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -342,75 +245,10 @@ export default function Home() {
             );
           })}
 
-          {/* Chapter 4: the essays. */}
-          <section className="essays" id="essays" tabIndex={-1} aria-labelledby="essays-h">
-            <div className="g essays-inner">
-              <h2 id="essays-h" className="essays-h mono">
-                Essays
-              </h2>
-              <Reveal as="ol" className="essay-list">
-                {posts.map((e, i) => (
-                  <li key={e.slug} className="essay">
-                    <span className="mono">{pad2(i + 1)}</span>
-                    <h3 className="essay-title">
-                      <Link href={`/writing/${e.slug}`}>
-                        <Chevroned text={e.title} />
-                      </Link>
-                    </h3>
-                    <span className="mono">
-                      {formatDate(e.date)} · {e.readingMinutes} min
-                    </span>
-                  </li>
-                ))}
-              </Reveal>
-
-              {/* The close: back to the two work samples the page opened with,
-                  then the two ways to get in touch. Existing labels only. */}
-              <section className="closing" aria-labelledby="closing-h" data-wordcount="skip">
-                <h2 id="closing-h" className="closing-h mono">
-                  Work samples
-                </h2>
-                <ul className="closing-list">
-                  {siteConfig.workSamples.map((s) => {
-                    if (s.kind === "essay") {
-                      const post = posts.find((p) => p.slug === s.slug);
-                      if (!post) return null;
-                      return (
-                        <li key={s.slug}>
-                          <Link href={`/writing/${post.slug}`}>
-                            <Chevroned text={post.title} />
-                          </Link>
-                          <span className="mono">Essay · {post.readingMinutes} min</span>
-                        </li>
-                      );
-                    }
-                    return (
-                      <li key={s.href}>
-                        <a href={s.href} type="application/pdf">
-                          <Chevroned text={s.title} />
-                        </a>
-                        <span className="mono">
-                          PDF, {s.pages} pages, {fileSize(s.href)}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <p className="closing-contact">
-                  <a href={`mailto:${siteConfig.contactEmail}`}>Contact me</a>
-                  <a href={siteConfig.socials.linkedin} target="_blank" rel="noopener noreferrer">
-                    LinkedIn
-                  </a>
-                </p>
-              </section>
-            </div>
-          </section>
         </div>
       </main>
 
-      <Reveal>
-        <Footer />
-      </Reveal>
+      <Footer />
       <ScrollStory />
     </>
   );

@@ -1,7 +1,7 @@
 // The visitor's "pause motion" choice (WCAG 2.2.2, Pause, Stop, Hide): one
-// switch that stops everything on the home page that moves on its own (the
-// recordings, the threads canvas, the beam). Scroll-driven movement is not
-// covered: it only happens while the visitor scrolls.
+// switch that stops everything on the home page that moves on its own: the
+// product recordings. Scroll-driven movement is not covered: it only happens
+// while the visitor scrolls.
 //
 // The choice lives on <html data-motion="paused">, so CSS can act on it before
 // any React code runs, and in localStorage, so it survives a reload. The home
