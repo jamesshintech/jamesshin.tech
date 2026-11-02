@@ -1,23 +1,34 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { jsonLd } from "@/lib/json-ld";
 import { siteConfig, absoluteUrl, markImage } from "@/data/config";
 import "./globals.css";
 
 // One grotesk for everything that is prose or a heading; one mono for
-// anything that is a fact (dates, status, counts).
-const grotesk = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
+// anything that is a fact (dates, status, counts). The files come from the
+// @fontsource packages (OFL, pinned in the lockfile), so the build fetches
+// nothing from Google: on 2026-11-02 Google Fonts began answering Vercel's
+// builders with CSS that next/font/google could not parse, and every deploy
+// failed. Latin subset only, as before.
+const grotesk = localFont({
+  src: [
+    { path: "../node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "../node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "../node_modules/@fontsource/space-grotesk/files/space-grotesk-latin-700-normal.woff2", weight: "700", style: "normal" },
+  ],
   display: "swap",
   variable: "--font-grotesk",
+  fallback: ["Helvetica Neue", "Arial", "sans-serif"],
 });
 
-const mono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
+const mono = localFont({
+  src: [
+    { path: "../node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "../node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff2", weight: "500", style: "normal" },
+  ],
   display: "swap",
   variable: "--font-mono",
+  fallback: ["ui-monospace", "SF Mono", "Menlo", "monospace"],
 });
 
 export const metadata: Metadata = {

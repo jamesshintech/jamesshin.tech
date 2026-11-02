@@ -40,7 +40,7 @@ pnpm lint && pnpm typecheck
 pnpm test:e2e
 ```
 
-Node 22 (CI and Vercel use the same major). Fonts come from `next/font/google` at build time; nothing is fetched by hand.
+Node 22 (CI and Vercel use the same major). Fonts are the `@fontsource` packages' latin files, loaded with `next/font/local`, so the build fetches nothing from Google (Google Fonts began answering Vercel's builders with CSS `next/font/google` could not parse on 2026-11-02).
 
 ## Notes
 
@@ -54,6 +54,6 @@ Node 22 (CI and Vercel use the same major). Fonts come from `next/font/google` a
 - **Code:** [MIT](LICENSE).
 - **Essays** (`content/essays/`): © James Shin, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Quoted material belongs to its authors.
 - **App recordings and app names** (`public/video/`): © James Shin, all rights reserved.
-- **Fonts:** Space Grotesk and JetBrains Mono are under the SIL Open Font License, served through `next/font/google`.
+- **Fonts:** Space Grotesk and JetBrains Mono are under the SIL Open Font License, installed from the pinned `@fontsource` packages and self-hosted through `next/font/local`.
 - **Ported geometry:** the pinned chapters' slot geometry is derived from React Bits ScrollStack (MIT, with the Commons Clause, which permits use in a site like this), rewritten by hand; the source is named in the code.
 - **The proposal** (`public/work/finance-data-studio.pdf`): © James Shin, all rights reserved. Written for an interview from public information; the product names in it belong to their owners.

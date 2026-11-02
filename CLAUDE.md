@@ -13,7 +13,8 @@ Tailwind v4, TypeScript, pnpm, deployed on Vercel.
 ## Design
 DESIGN.md is the source of truth: charcoal `#1C1C1A` ground, cream `#F2EFE6`
 type, amber `#F2B134` only on the current nav item and the work-sample labels;
-Space Grotesk and JetBrains Mono from `next/font/google`. Tokens live in
+Space Grotesk and JetBrains Mono from the pinned `@fontsource` packages via
+`next/font/local` (never `next/font/google`: its build-time fetch broke on Vercel). Tokens live in
 `app/globals.css`. The home page is a scroll story: chapter 0 (name, line, work
 samples, Contents, the first product), then one pinned chapter per product,
 then the footer; `components/home/ScrollStory.tsx` drives it with native
