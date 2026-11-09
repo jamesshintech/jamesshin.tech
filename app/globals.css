@@ -260,14 +260,15 @@ html[data-room-time="night"] .room-stage {
   height: 100%;
   opacity: 0;
   transition: opacity 500ms ease;
-  cursor: grab;
   touch-action: none;
 }
-.room-canvas:active {
-  cursor: grabbing;
-}
+/* Only a running room answers a drag, so only it offers the grab cursor. */
 .room[data-state="live"] .room-canvas {
   opacity: 1;
+  cursor: grab;
+}
+.room[data-state="live"] .room-canvas:active {
+  cursor: grabbing;
 }
 /* Yonmoku's own 0.18 vignette, drawn by the compositor rather than the scene. */
 .room-vignette {

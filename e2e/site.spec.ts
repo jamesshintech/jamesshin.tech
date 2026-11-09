@@ -53,6 +53,13 @@ async function live(page: Page) {
   await page.waitForSelector(".room[data-state='live']", { state: "attached", timeout: 90_000 });
 }
 
+/** Save-Data on: a real visitor path where the room stays its picture. The
+    column's tests use it so they never pay for the room, which on a CI runner
+    renders on the CPU (SwiftShader) and can starve the page. */
+const SAVE_DATA = () => {
+  Object.defineProperty(navigator, "connection", { value: { saveData: true }, configurable: true });
+};
+
 /** Console errors and uncaught exceptions from the moment the page opens. */
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -64,6 +71,10 @@ function watchErrors(page: Page): string[] {
 }
 
 test.describe("home", () => {
+  test.beforeEach(async ({ context }) => {
+    await context.addInitScript(SAVE_DATA);
+  });
+
   test("the column is the page: the name, the role, one line, two labelled work samples and four products, each a real link", async ({ page, request }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/James Shin/);
@@ -151,6 +162,7 @@ test.describe("home", () => {
 
   test("text is drawn solid: no entrance, no reveal", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    await ctx.addInitScript(SAVE_DATA);
     const p = await ctx.newPage();
     await p.goto("/");
     // Straight after load, before any animation could finish, everything is already at rest.
@@ -212,6 +224,7 @@ test.describe("home", () => {
   test("LinkedIn is in the footer at every width and in the nav once it fits; the nav stays one row", async ({ browser }) => {
     for (const w of [320, 390, 430, 480, 820, 1440]) {
       const ctx = await browser.newContext({ viewport: { width: w, height: 900 } });
+      await ctx.addInitScript(SAVE_DATA);
       const p = await ctx.newPage();
       // Reading pages: the site nav.
       await p.goto("/writing");
@@ -271,6 +284,7 @@ test.describe("home", () => {
   test("the layout holds from 320px to 1440px: the column beside the room or over its lower half, targets at least 44px, never a sideways scroll", async ({ browser }) => {
     for (const [w, h] of [[1440, 900], [1024, 768], [768, 1024], [390, 844], [320, 640]]) {
       const ctx = await browser.newContext({ viewport: { width: w, height: h } });
+      await ctx.addInitScript(SAVE_DATA);
       const p = await ctx.newPage();
       await p.goto("/");
       await p.evaluate(() => document.fonts.ready);
@@ -345,7 +359,7 @@ test.describe("room", () => {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const p = await ctx.newPage();
     const errors = watchErrors(p);
-    await p.goto("/?time=day");
+    await p.goto("/?time=day&q=low");
     await live(p);
     await row(p, "essay").focus();
     await expect(row(p, "essay")).toHaveClass(/is-active/);
@@ -370,7 +384,7 @@ test.describe("room", () => {
     const video = dialog.locator("video");
     await expect(video.locator("source[type='video/webm']")).toHaveAttribute("src", /\/video\/squeeze-loop\.webm$/);
     await expect(video).toHaveAttribute("poster", /\/video\/squeeze-loop\.webp$/);
-    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => !v.paused), { message: "the recording plays" }).toBe(true);
+    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => !v.paused), { message: "the recording plays", timeout: 15_000 }).toBe(true);
     await expect(dialog.getByRole("button", { name: "Close" })).toBeFocused();
     expect(ctx.pages(), "the row opened the panel, not the store").toHaveLength(1);
     await expect(squeeze).toHaveClass(/is-active/);
@@ -393,7 +407,7 @@ test.describe("room", () => {
   test("an object opens the same panel; the board drops a bead first", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const p = await ctx.newPage();
-    await p.goto("/?debug=1&time=dusk");
+    await p.goto("/?debug=1&time=dusk&q=low");
     await live(p);
     const meshes = () => p.evaluate(() => {
       let n = 0;
@@ -420,7 +434,7 @@ test.describe("room", () => {
   test("under reduced motion the room is still and a recording waits for Play, which keeps focus", async ({ browser }) => {
     const ctx = await browser.newContext({ reducedMotion: "reduce", viewport: { width: 1440, height: 900 } });
     const p = await ctx.newPage();
-    await p.goto("/?debug=1");
+    await p.goto("/?debug=1&q=low");
     await live(p);
     expect(await p.evaluate(() => window.__room!.stage.running), "no frame loop").toBe(false);
     // Nothing moves on its own, so there is no pause switch.
@@ -434,7 +448,7 @@ test.describe("room", () => {
     expect(await video.evaluate((v: HTMLVideoElement) => v.paused), "holds the poster").toBe(true);
     await play.focus();
     await p.keyboard.press("Enter");
-    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => !v.paused), { message: "plays once asked" }).toBe(true);
+    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => !v.paused), { message: "plays once asked", timeout: 15_000 }).toBe(true);
     // The same button becomes Pause, and focus stays on it.
     const control = dialog.locator(".loop .play");
     await expect(control).toHaveText("Pause loop");
@@ -449,7 +463,7 @@ test.describe("room", () => {
   test("a pause switch stops the room, keeps focus, and is remembered", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const p = await ctx.newPage();
-    await p.goto("/?debug=1");
+    await p.goto("/?debug=1&q=low");
     await live(p);
     expect(await p.evaluate(() => window.__room!.stage.running), "the room moves").toBe(true);
     const toggle = p.locator(".motion-toggle");
@@ -478,16 +492,14 @@ test.describe("room", () => {
           return kind === "webgl2" ? null : (get as (...a: unknown[]) => unknown).call(this, kind, ...rest);
         } as typeof get;
       },
-      "Save-Data": () => {
-        Object.defineProperty(navigator, "connection", { value: { saveData: true }, configurable: true });
-      },
+      "Save-Data": SAVE_DATA,
     };
     for (const [why, block] of Object.entries(blockers)) {
       const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
       const p = await ctx.newPage();
       const errors = watchErrors(p);
       await p.addInitScript(block);
-      await p.goto("/?time=night");
+      await p.goto("/?time=night&q=low");
       await p.waitForSelector(".room[data-state='picture']", { state: "attached" });
       await expect(p.locator("canvas"), why).toHaveCount(0);
       expect(await p.locator(".room-stage").evaluate((e) => getComputedStyle(e).backgroundImage)).toContain("/room/poster-night-wide.webp");
@@ -502,7 +514,7 @@ test.describe("room", () => {
   test("on a phone the panel is a sheet from the bottom, and hotspots sit in the room above the column", async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     const p = await ctx.newPage();
-    await p.goto("/?time=day");
+    await p.goto("/?time=day&q=low");
     await live(p);
     for (const spot of await p.locator(".room-spot[data-on]").all()) {
       const box = (await spot.boundingBox())!;
@@ -523,7 +535,7 @@ test.describe("room", () => {
   });
 
   test("leaving the page releases the room, and coming back builds it again", async ({ page }) => {
-    await page.goto("/?debug=1");
+    await page.goto("/?debug=1&q=low");
     await live(page);
     await page.locator(".room-nav").getByRole("link", { name: "Writing" }).click();
     await page.waitForURL("**/writing");
