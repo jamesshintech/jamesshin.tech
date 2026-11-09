@@ -2,7 +2,7 @@
 
 A one-page work sample: the name, one line of background, two labelled work
 samples, four shipped products (each a recording of the real app, its own
-one-line description and a link); essays under /writing. Next.js 15 App Router,
+one-line description and a link), set in the Yonmoku room; essays under /writing. Next.js 15 App Router,
 Tailwind v4, TypeScript, pnpm, deployed on Vercel.
 
 ## Commands
@@ -12,16 +12,27 @@ Tailwind v4, TypeScript, pnpm, deployed on Vercel.
 
 ## Design
 DESIGN.md is the source of truth: charcoal `#1C1C1A` ground, cream `#F2EFE6`
-type, amber `#F2B134` only on the current nav item and the work-sample labels;
-Space Grotesk and JetBrains Mono from the pinned `@fontsource` packages via
-`next/font/local` (never `next/font/google`: its build-time fetch broke on Vercel). Tokens live in
-`app/globals.css`. The home page is a scroll story: chapter 0 (name, line, work
-samples, Contents, the first product), then one pinned chapter per product,
-then the footer; `components/home/ScrollStory.tsx` drives it with native
-scrolling. Text is never animated and nothing moves on its own but the
-recordings: no background canvas, lit grid, frame light, progress bar,
-colophon or end-of-page recap (all tried and cut; see the decisions log). The decisions log in DESIGN.md
-records what was tried and cut. Ask before departing from it.
+type, amber `#F2B134` only for "here" (the current nav item, the active row
+and its object, the work-samples heading); Space Grotesk and JetBrains Mono
+from the pinned `@fontsource` packages via `next/font/local` (never
+`next/font/google`: its build-time fetch broke on Vercel). Tokens live in
+`app/globals.css`. The home page is the Yonmoku room (`lib/room/`, three.js,
+loaded after idle from its own chunk) behind a column that carries every word
+and link (`components/home/StudyHome.tsx`); each item is a row and an object,
+and a product's recording shows only in its panel. Text is never animated; no
+pointer effects outside the room, no colophon, no end-of-page recap (see the
+decisions log). Ask before departing from it.
+
+## The room
+- Budgets, enforced by e2e: about 100 draw calls, 40k triangles, 40 shader
+  programs; three.js never in the first load; everything released on unmount.
+- After changing the scene, regenerate the pictures shown while it loads:
+  `node scripts/room-posters.mjs` against `pnpm build && pnpm start`.
+- GLSL: never write a reversed `smoothstep` (edge0 >= edge1); it is undefined
+  and returns 0 on Apple's Metal path. Write `1.0 - smoothstep(lo, hi, x)`.
+- `?debug=1` shows the frame meter and exposes `window.__room`; `?time=`,
+  `?q=low|high`, `?dpr=` and `?motion=off` pin the light, tier, pixel ratio
+  and motion.
 
 ## Work samples
 `siteConfig.workSamples` in `data/config.ts` lists them in order: an essay by
@@ -46,12 +57,12 @@ match the source exactly. Diagrams use the HTML figure component in DESIGN.md
 ("Essay figure"), not images or SVG. The e2e suite pins the essay count.
 
 ## Constraints
-- No UI or animation libraries, no WebGL or 3D viewers, no AI-generated imagery
-- No static images: products are recordings, essay diagrams are HTML figures
+- No UI or animation libraries and no AI-generated imagery; three.js
+  (pinned) only for the home page's room
+- No static images on the interface: products are recordings, essay diagrams
+  are HTML figures, the room's still is a render of the room
 - No cookies, analytics or tracking
-- First-load JS within a few kB of Next's baseline (102 kB shared, 108 kB home); Lighthouse 95+
-- No animation libraries, and no decorative motion: ported geometry (the
-  pinned chapters follow React Bits ScrollStack) names its source in a comment
-  under `prefers-reduced-motion`.
+- First-load JS within a few kB of Next's baseline (102 kB shared, 109 kB home); Lighthouse 95+
+- Techniques taken from elsewhere name their source in a comment
 - The banned-strings check reads private patterns from `BANNED_PATTERNS`
   (CI secret or `.env.local`). Never write those patterns into the repo.

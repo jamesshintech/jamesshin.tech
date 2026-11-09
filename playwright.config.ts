@@ -31,7 +31,9 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { browserName: "chromium" },
+      // Headless Chromium has no GPU; SwiftShader gives it WebGL 2, so the
+      // tests run the same room a visitor gets.
+      use: { browserName: "chromium", launchOptions: { args: ["--enable-unsafe-swiftshader"] } },
     },
   ],
   // CI tests the production build (`pnpm build` runs first); locally, dev.

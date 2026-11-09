@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 // Privacy and leftovers check. Until the 2026-10-23 relaunch this site was
 // published under my company's name, JJ Fisher, with different content; the
@@ -39,99 +39,128 @@ function expectClean(html: string, where: string) {
 const BILLING = "/writing/2026-w43-billing-controls-from-checklists-to-harnesses";
 const MOAT = "/writing/2026-w17-the-distribution-moat-in-the-ai-era";
 
+const ROWS = ["essay", "proposal", "board", "phone", "weeks", "map"] as const;
+const PRODUCTS: [string, string, RegExp, string][] = [
+  ["board", "Yonmoku: 3D Four in a Row", /^https:\/\/apps\.apple\.com\/us\/app\/yonmoku-3d-four-in-a-row\/id6821935069$/, "Four in a row, in three dimensions. Two people, one phone."],
+  ["phone", "Squeeze: The Estimation Duel", /^https:\/\/apps\.apple\.com\//, "A head-to-head estimation duel for two players on one iPhone or iPad."],
+  ["weeks", "Vitality Weeks", /^https:\/\/apps\.apple\.com\//, "Your life in weeks. See every week at a glance."],
+  ["map", "HighSchoolTrends.org", /^https:\/\/highschooltrends\.org\/?$/, "Free multi-year trend data for 30,000+ US high schools."],
+];
+const row = (page: Page, key: string) => page.locator(`.room-item[data-key='${key}']`);
+
+/** The room has drawn its first frame. SwiftShader compiles the room's shaders on the CPU, so this can take a while. */
+async function live(page: Page) {
+  await page.waitForSelector(".room[data-state='live']", { state: "attached", timeout: 90_000 });
+}
+
+/** Console errors and uncaught exceptions from the moment the page opens. */
+function watchErrors(page: Page): string[] {
+  const errors: string[] = [];
+  page.on("console", (m) => {
+    if (m.type() === "error") errors.push(m.text());
+  });
+  page.on("pageerror", (e) => errors.push(e.message));
+  return errors;
+}
+
 test.describe("home", () => {
-  test("four products, each a recording with a one-liner and a link, one chapter each", async ({ page }) => {
+  test("the column is the page: the name, the role, one line, two labelled work samples and four products, each a real link", async ({ page, request }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/James Shin/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("James Shin");
+    // The role sits between the name and the line: generic, never an employer.
+    await expect(page.locator(".room-role")).toHaveText("Business and finance systems leader");
+    const [h1Box, roleBox, lineBox] = await page.locator(".room-intro h1, .room-role, .room-line").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
+    expect(roleBox.top, "role under the name").toBeGreaterThanOrEqual(h1Box.bottom);
+    expect(lineBox.top, "line under the role").toBeGreaterThanOrEqual(roleBox.bottom);
+    await expect(page.locator(".room-line")).toContainText("13 years in finance systems");
+    await expect(page.locator(".room-line")).toContainText("On the side, I build games and small apps.");
 
-    // One chapter per product; the first also carries the name and the work samples.
-    await expect(page.locator("main section[data-chapter]")).toHaveCount(4);
-    await expect(page.locator("main video")).toHaveCount(4);
-    const expected: [string, string, RegExp][] = [
-      ["yonmoku", "Yonmoku: 3D Four in a Row", /apps\.apple\.com\/us\/app\/yonmoku-3d-four-in-a-row\/id6821935069/],
-      ["squeeze", "Squeeze: The Estimation Duel", /apps\.apple\.com/],
-      ["vitality-weeks", "Vitality Weeks", /apps\.apple\.com/],
-      ["highschooltrends", "HighSchoolTrends.org", /highschooltrends\.org/],
-    ];
-    for (const [slug, name, host] of expected) {
-      const tile = page.locator(`#${slug}`);
-      await expect(tile.getByRole("heading", { level: 2 })).toHaveText(name);
-      await expect(tile.getByRole("heading", { level: 2 }).getByRole("link")).toHaveAttribute("href", host);
-      await expect(tile.locator("p.tile-line")).not.toBeEmpty();
-      // Every visual is a recording of the real app.
-      const video = tile.locator("video");
-      await expect(video).toHaveCount(1);
-      await expect(video.locator("source[type='video/webm']")).toHaveAttribute("src", /\/video\/.+\.webm$/);
-      await expect(video).toHaveAttribute("poster", /\/video\/.+\.webp$/);
+    // Six rows, in this order: two work samples, then four products.
+    await expect(page.locator("main .room-item")).toHaveCount(6);
+    expect(await page.locator("main .room-item").evaluateAll((els) => els.map((e) => e.getAttribute("data-key")))).toEqual([...ROWS]);
+    for (const el of await page.locator("main .room-item").all()) expect(await el.evaluate((e) => e.tagName)).toBe("A");
+
+    // The essay and the proposal, each labelled "kind · detail" with one line under the title.
+    await expect(page.locator("#room-samples-h")).toHaveText("Work samples");
+    await expect(row(page, "essay")).toHaveAttribute("href", BILLING);
+    await expect(row(page, "essay").locator(".room-item-title")).toHaveText("Billing Controls: From Checklists to Harnesses");
+    await expect(row(page, "essay").locator(".room-item-kind")).toHaveText(/^Essay · \d+ min$/);
+    await expect(row(page, "essay").locator(".room-item-line")).toHaveText(/^Agents are starting to touch money\./);
+    // The proposal is a real file, labelled for what it is: a take-home for an
+    // interview, built from public information. Never presented as client work.
+    await expect(row(page, "proposal")).toHaveAttribute("href", "/work/finance-data-studio.pdf");
+    await expect(row(page, "proposal").locator(".room-item-title")).toContainText("Finance Data Studio");
+    const mb = (fs.statSync(path.join(process.cwd(), "public/work/finance-data-studio.pdf")).size / 1e6).toFixed(1);
+    await expect(row(page, "proposal").locator(".room-item-kind")).toHaveText(`PDF · 12 pages · ${mb} MB`);
+    await expect(row(page, "proposal").locator(".room-item-line")).toHaveText("Interview take-home, September 2026, built from public information.");
+    const pdf = await request.get("/work/finance-data-studio.pdf");
+    expect(pdf.status()).toBe(200);
+    expect(pdf.headers()["content-type"]).toContain("application/pdf");
+    const bytes = await pdf.body();
+    expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
+    // Its own title says what it is, not whose interview it was for. Its
+    // uncompressed bytes pass the same scan as every page.
+    expect(bytes.toString("latin1")).toMatch(/\/Title\s*\(Finance Data Studio\)/);
+    expectClean(bytes.toString("latin1"), "the proposal PDF");
+
+    // Four products, each the product's own one-liner and a link to its store or site.
+    await expect(page.locator("#room-products-h")).toHaveText("Products, all live");
+    for (const [key, name, href, tagline] of PRODUCTS) {
+      await expect(row(page, key).locator(".room-item-title")).toHaveText(name);
+      await expect(row(page, key)).toHaveAttribute("href", href);
+      await expect(row(page, key)).toHaveAttribute("target", "_blank");
+      await expect(row(page, key).locator(".room-item-line")).toHaveText(tagline);
+      // Every product is approved and on sale; none is labelled live before its store says so.
+      await expect(row(page, key).locator(".room-item-kind")).toHaveText(/^Live · [A-Z][a-z]{2} \d{4} · (iOS|Web)$/);
     }
-    // Every product is approved and on sale; none is labelled live before its store says so.
-    for (const meta of await page.locator("p.tile-meta").allTextContents()) expect(meta).toMatch(/^Live · /);
-    await expect(page.locator("#yonmoku p.tile-meta")).toHaveText("Live · Oct 2026 · iOS");
+    await expect(row(page, "board").locator(".room-item-kind")).toHaveText("Live · Oct 2026 · iOS");
+    await expect(page.locator(".room-products .room-item-n")).toHaveText(["01", "02", "03", "04"]);
 
-    // Concise: no static images, and the main column's own copy (name, one
-    // line, two labelled work samples with a one-line note each, four
-    // products) under 220 words. The budget keeps pitch copy
-    // off the page. A list that only repeats links to what is already on the
-    // page (the Contents) is marked data-wordcount="skip" and left out; it
-    // cannot carry pitch copy because it holds only links.
-    expect(await page.locator("img").count()).toBe(0);
-    const words = await page.locator("main").evaluate((m) => {
-      const copy = m.cloneNode(true) as HTMLElement;
-      copy.querySelectorAll("[data-wordcount='skip']").forEach((e) => e.remove());
-      document.body.appendChild(copy);
-      const n = copy.innerText.trim().split(/\s+/).filter(Boolean).length;
-      copy.remove();
-      return n;
-    });
+    // Concise: the main column's own copy under 220 words. The budget keeps
+    // pitch copy off the page.
+    const words = await page.locator("main").evaluate((m) => (m as HTMLElement).innerText.trim().split(/\s+/).filter(Boolean).length);
     expect(words).toBeLessThan(220);
-    // What is skipped really is only links and their labels.
-    const skipped = await page.locator("main [data-wordcount='skip']").evaluateAll((els) =>
-      els.every((e) => Array.from(e.querySelectorAll("p, li")).every((n) => n.querySelector("a, button") || n.classList.contains("contents-h") || n.closest(".contents-head"))),
-    );
-    expect(skipped, "skipped blocks hold only links").toBe(true);
-
-    // The one essay is the first work sample; the home page lists it once
-    // and leaves the index to Writing.
-    await expect(page.locator("#essays, .essays")).toHaveCount(0);
+    // No static images: the room's picture is a CSS background under it, and
+    // the recordings load only when a product is opened.
+    expect(await page.locator("img").count()).toBe(0);
+    expect(await page.locator("video").count()).toBe(0);
+    // Each sample is linked once, and nothing at the end repeats them.
     await expect(page.locator(`main a[href='${BILLING}']`)).toHaveCount(1);
-    // The hero is the only place the work samples are listed: nothing at the
-    // end repeats them.
-    await expect(page.locator("main a[href$='.pdf']"), "the PDF is linked once").toHaveCount(1);
-    expect(await page.locator(".closing").count(), "no recap block repeating the hero").toBe(0);
+    await expect(page.locator("main a[href$='.pdf']")).toHaveCount(1);
+    // No resume on the site, by choice; never a dead link.
+    await expect(page.getByRole("link", { name: /resume/i })).toHaveCount(0);
 
     const html = await page.content();
     expectClean(html, "home");
     expect(html).not.toContain("/_vercel/insights");
   });
 
-  test("the layout uses the width: each recording sits beside its copy on desktop, sides alternating, and above it on phones; never a sideways scroll", async ({ browser }) => {
-    for (const w of [1440, 1024, 768, 390, 320]) {
-      const ctx = await browser.newContext({ viewport: { width: w, height: 900 } });
-      const p = await ctx.newPage();
-      await p.goto("/");
-      const sides: string[] = [];
-      for (const slug of ["yonmoku", "squeeze", "vitality-weeks", "highschooltrends"]) {
-        // Document order: the frame, then the product's name.
-        const [frame, name] = await p.locator(`#${slug} .frame, #${slug} h2`).evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
-        if (w >= 901) {
-          expect(frame.left >= name.right || frame.right <= name.left, `${slug} frame beside its copy at ${w}px`).toBe(true);
-          sides.push(frame.left > name.left ? "right" : "left");
-        } else {
-          expect(frame.bottom, `${slug} frame above its name at ${w}px`).toBeLessThanOrEqual(name.top);
-        }
-      }
-      if (w >= 901) expect(sides, `recording sides at ${w}px`).toEqual(["right", "left", "right", "left"]);
-      expect(await p.evaluate(() => document.documentElement.scrollWidth), `scroll width at ${w}px`).toBe(w);
-      await ctx.close();
-    }
+  test("without JavaScript every row is a link, nothing waits for a script, and the room is its picture", async ({ browser }) => {
+    const ctx = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } });
+    const p = await ctx.newPage();
+    await p.goto("/");
+    await expect(p.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(p.locator("main a.room-item")).toHaveCount(6);
+    await expect(row(p, "phone")).toHaveAttribute("href", /apps\.apple\.com/);
+    await expect(p.locator("canvas")).toHaveCount(0);
+    // The gate script never ran, so the default picture (dusk) shows.
+    expect(await p.locator(".room-stage").evaluate((e) => getComputedStyle(e).backgroundImage)).toContain("/room/poster-dusk-wide.webp");
+    await ctx.close();
   });
 
-  test("the tiles are recordings and links only: no playable round", async ({ page }) => {
-    await page.goto("/");
-    // The one button in main is the pause-motion switch (WCAG 2.2.2).
-    await expect(page.locator("main dialog")).toHaveCount(0);
-    await expect(page.locator("main button:not(.motion-toggle)")).toHaveCount(0);
-    await expect(page.getByText(/play a round/i)).toHaveCount(0);
+  test("text is drawn solid: no entrance, no reveal", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const p = await ctx.newPage();
+    await p.goto("/");
+    // Straight after load, before any animation could finish, everything is already at rest.
+    const busy = await p.evaluate(() =>
+      document.getAnimations().map((a) => (a as CSSAnimation).animationName ?? (a as CSSTransition).transitionProperty ?? "?"),
+    );
+    expect(busy, "running animations on load").toEqual([]);
+    await expect(p.locator(".progress, .beam, .grid-bg, [data-reveal]")).toHaveCount(0);
+    await expect(p.getByRole("heading", { level: 1 })).toHaveCSS("opacity", "1");
+    await ctx.close();
   });
 
   test("contact links to jjhlee92@gmail.com without printing the address, and there is no Log section", async ({ page, request }) => {
@@ -146,244 +175,6 @@ test.describe("home", () => {
     await expect(page.locator("nav").getByRole("link", { name: /^log$/i })).toHaveCount(0);
     expect((await request.get("/log")).status()).toBe(404);
     expect(await (await request.get("/sitemap.xml")).text()).not.toContain("/log");
-  });
-
-  test("the hero is the name, one line of background, and two labelled work samples", async ({ page, request }) => {
-    await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("James Shin");
-    // The role sits between the name and the line: generic, never an employer.
-    await expect(page.locator(".c0-role")).toHaveText("Business and finance systems leader");
-    const [h1Box, roleBox, lineBox] = await page.locator(".c0-h, .c0-role, .intro-line").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
-    expect(roleBox.top, "role under the name").toBeGreaterThanOrEqual(h1Box.bottom);
-    expect(lineBox.top, "line under the role").toBeGreaterThanOrEqual(roleBox.bottom);
-    await expect(page.locator(".intro-line")).toContainText("13 years in finance systems");
-    await expect(page.locator(".intro-line")).toContainText("On the side, I build games and small apps.");
-    const samples = page.locator(".samples a.btn");
-    await expect(samples).toHaveCount(2);
-    await expect(samples.nth(0)).toHaveAttribute("href", BILLING);
-    await expect(samples.nth(0)).toContainText("Billing Controls: From Checklists to Harnesses");
-    // The proposal is a real file, labelled for what it is: a take-home for an
-    // interview, built from public information. Never presented as client work.
-    await expect(samples.nth(1)).toHaveAttribute("href", "/work/finance-data-studio.pdf");
-    await expect(samples.nth(1)).toContainText("Finance Data Studio");
-    // The label carries the file's real size, read at build time, in the same
-    // "kind · detail" form as the essay's.
-    const mb = (fs.statSync(path.join(process.cwd(), "public/work/finance-data-studio.pdf")).size / 1e6).toFixed(1);
-    await expect(samples.nth(1)).toContainText(`PDF · 12 pages · ${mb} MB`);
-    await expect(samples.nth(0)).toContainText(/Essay · \d+ min/);
-    // Each card carries one line under its title: the essay's summary, and
-    // the proposal's provenance, which names neither the company nor the role.
-    const notes = page.locator(".sample-note");
-    await expect(notes).toHaveCount(2);
-    await expect(notes.nth(0)).toHaveText(/^Agents are starting to touch money\./);
-    await expect(notes.nth(1)).toHaveText("Interview take-home, September 2026, built from public information.");
-    const pdf = await request.get("/work/finance-data-studio.pdf");
-    expect(pdf.status()).toBe(200);
-    expect(pdf.headers()["content-type"]).toContain("application/pdf");
-    const bytes = await pdf.body();
-    expect(bytes.subarray(0, 5).toString()).toBe("%PDF-");
-    // Its own title says what it is, not whose interview it was for (Keynote
-    // writes the file name there). Its uncompressed bytes pass the same scan
-    // as every page.
-    expect(bytes.toString("latin1")).toMatch(/\/Title\s*\(Finance Data Studio\)/);
-    expectClean(bytes.toString("latin1"), "the proposal PDF");
-    // On a phone both samples sit above the first recording, so a recruiter
-    // reaches them without scrolling past a full-height video.
-    const phone = await page.context().browser()!.newContext({ viewport: { width: 390, height: 844 } });
-    const pp = await phone.newPage();
-    await pp.goto("/");
-    // The role keeps its place on a phone too: under the name, above the line.
-    const [ph1, prole, pline] = await pp.locator(".c0-h, .c0-role, .intro-line").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
-    expect(prole.top, "role under the name on a phone").toBeGreaterThanOrEqual(ph1.bottom);
-    expect(pline.top, "line under the role on a phone").toBeGreaterThanOrEqual(prole.bottom);
-    const [lastSample, contents, firstFrame] = await pp.locator(".samples li:last-child, .contents, #yonmoku .frame").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
-    expect(lastSample.bottom, "samples above the first recording on a phone").toBeLessThanOrEqual(firstFrame.top);
-    // The Contents, with the pause switch, sits between them: an index before
-    // the products, and the switch before anything that moves.
-    expect(contents.top, "Contents after the samples").toBeGreaterThanOrEqual(lastSample.bottom);
-    expect(contents.bottom, "Contents before the first recording").toBeLessThanOrEqual(firstFrame.top);
-    await phone.close();
-    // No resume on the site, by choice; never a dead link.
-    await expect(page.getByRole("link", { name: /resume/i })).toHaveCount(0);
-  });
-
-  test("text is drawn solid: no entrance, no reveal, and nothing moves but the recordings", async ({ browser }) => {
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-    const p = await ctx.newPage();
-    await p.goto("/");
-    // Straight after load, before any animation could finish, everything is
-    // already at rest.
-    const busy = await p.evaluate(() =>
-      document.getAnimations().map((a) => (a as CSSAnimation).animationName ?? (a as CSSTransition).transitionProperty ?? "?"),
-    );
-    expect(busy, "running animations on load").toEqual([]);
-    await expect(p.locator("canvas")).toHaveCount(0);
-    await expect(p.locator(".progress, .beam, .grid-bg, [data-reveal]")).toHaveCount(0);
-    await expect(p.getByRole("heading", { level: 1 })).toHaveCSS("opacity", "1");
-    await ctx.close();
-  });
-
-  test("a reader who stops mid-slide sees the incoming chapter's title and tagline whole", async ({ browser }) => {
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-    const p = await ctx.newPage();
-    await p.goto("/");
-    await p.evaluate(() => document.fonts.ready);
-    for (const slug of ["squeeze", "vitality-weeks", "highschooltrends"]) {
-      // Stop with the chapter's top 30% down the viewport: most of it is on
-      // screen, still sliding over the one before.
-      const top = await p.locator(`#${slug}`).evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
-      await p.evaluate((y) => window.scrollTo(0, y), Math.round(top - 0.3 * 900));
-      await p.waitForTimeout(400);
-      // Effective opacity of the title, the tagline and every element inside
-      // them (a word span included): the product of its own and every ancestor's.
-      const seen = await p.locator(`#${slug} h2, #${slug} h2 *, #${slug} .ch-tag, #${slug} .ch-tag *`).evaluateAll((els) =>
-        els.map((e) => {
-          let o = 1;
-          for (let n: Element | null = e; n; n = n.parentElement) o *= Number(getComputedStyle(n).opacity);
-          return o;
-        }),
-      );
-      expect(Math.min(...seen), `${slug} title and tagline opacity mid-slide`).toBeGreaterThan(0.95);
-    }
-    await ctx.close();
-  });
-
-  test("a pause switch stops everything that moves on its own, keeps focus, and is remembered", async ({ browser }) => {
-    for (const [w, h, where] of [[1440, 900, ".rail .motion-toggle"], [390, 844, ".contents .motion-toggle"]] as const) {
-      const ctx = await browser.newContext({ viewport: { width: w, height: h } });
-      const p = await ctx.newPage();
-      await p.goto("/");
-      const toggle = p.locator(where);
-      await expect(toggle, `switch visible at ${w}px`).toBeVisible();
-      await expect(p.locator(".motion-toggle:visible"), `one switch at ${w}px`).toHaveCount(1);
-      const video = p.locator("#yonmoku video");
-      // Recordings play only near the viewport, so every check below brings
-      // the recording into view first: paused must mean paused by the switch.
-      const inView = () => video.evaluate((v) => v.scrollIntoView({ block: "center", behavior: "instant" }));
-      await inView();
-      await expect.poll(() => video.evaluate((v: HTMLVideoElement) => !v.paused), { message: "plays before pausing" }).toBe(true);
-
-      await toggle.focus();
-      await p.keyboard.press("Enter");
-      await expect(toggle).toHaveAttribute("aria-pressed", "true");
-      await expect(toggle).toHaveText(/play motion/i);
-      await expect(toggle).toBeFocused();
-      await expect(p.locator("html")).toHaveAttribute("data-motion", "paused");
-      await inView();
-      await p.waitForTimeout(800);
-      expect(await video.evaluate((v: HTMLVideoElement) => v.paused), "recording paused while in view").toBe(true);
-
-      // Remembered across a reload, before anything starts moving.
-      await p.reload();
-      await expect(p.locator("html")).toHaveAttribute("data-motion", "paused");
-      await inView();
-      await p.waitForTimeout(800);
-      expect(await video.evaluate((v: HTMLVideoElement) => v.paused), "still paused after reload, in view").toBe(true);
-
-      await p.locator(where).click();
-      await expect(p.locator("html")).not.toHaveAttribute("data-motion", "paused");
-      await inView();
-      await expect.poll(() => video.evaluate((v: HTMLVideoElement) => !v.paused), { message: "plays again" }).toBe(true);
-      await ctx.close();
-    }
-  });
-
-  test("the rail leads back to the intro, names its chapters, and Contents marks nothing when nothing is pinned", async ({ browser }) => {
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-    const p = await ctx.newPage();
-    await p.goto("/");
-    const rail = p.locator("nav.rail a");
-    await expect(rail.first()).toHaveAccessibleName("00 Intro");
-    await expect(rail.nth(2)).toHaveAccessibleName("02 Squeeze");
-    await p.locator("nav.rail a[href='#squeeze']").click();
-    await expect.poll(() => p.evaluate(() => window.scrollY)).toBeGreaterThan(900);
-    await rail.first().click();
-    await expect.poll(() => p.evaluate(() => window.scrollY), { message: "back at the intro" }).toBeLessThan(5);
-    await p.waitForTimeout(300);
-    expect(await p.locator(".samples").evaluate((e) => Number(getComputedStyle(e.closest(".c0-a")!).opacity)), "work samples visible again").toBe(1);
-    await expect(p.locator("nav.rail li.is-current a")).toHaveAccessibleName("00 Intro");
-
-    // The rail never paints over a chapter, even while a hover label widens it.
-    const top = await p.locator("#squeeze").evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
-    await p.evaluate((y) => window.scrollTo(0, y), Math.round(top - 0.3 * 900));
-    await p.waitForTimeout(400);
-    await p.locator("nav.rail a[href='#vitality-weeks']").hover();
-    // Probe the right edge of every line box of the title.
-    const covered = await p.locator("#squeeze h2 a").evaluate((a) => {
-      const r = document.createRange();
-      r.selectNodeContents(a);
-      return Array.from(r.getClientRects()).filter((box) => {
-        const hit = document.elementFromPoint(box.right - 4, box.top + box.height / 2);
-        return !hit || !a.contains(hit);
-      }).length;
-    });
-    expect(covered, "title line ends hidden under the rail").toBe(0);
-    await ctx.close();
-
-    const phone = await browser.newContext({ viewport: { width: 390, height: 844 } });
-    const q = await phone.newPage();
-    await q.goto("/");
-    await expect(q.locator(".contents li.is-current")).toHaveCount(0);
-    await phone.close();
-  });
-
-  test("the page ends on the last product, then a footer of plain links", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator("#highschooltrends .ch-next")).toHaveCount(0);
-    await expect(page.locator(".closing, footer .colophon")).toHaveCount(0);
-    const footer = page.locator("footer");
-    await expect(footer.getByRole("link")).toHaveText(["Contact me", "LinkedIn", "GitHub", "RSS"]);
-  });
-
-  test("at the bottom of the page the last chapter meets the footer, with no empty screen between", async ({ browser }) => {
-    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-    const p = await ctx.newPage();
-    await p.goto("/");
-    await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-    await p.waitForTimeout(300);
-    const [last, footer] = await p.locator("#highschooltrends, footer").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
-    expect(footer.top - last.bottom, "gap between the last chapter and the footer").toBeLessThan(80);
-    expect(last.bottom, "the last chapter is on screen above the footer").toBeGreaterThan(300);
-    // Nothing slides over the last chapter, so it is never dimmed or shrunk.
-    expect(await p.locator("#highschooltrends .chapter-inner").evaluate((e) => getComputedStyle(e).transform)).toBe("none");
-    await ctx.close();
-  });
-
-  test("the Contents label and the pause switch sit on one baseline", async ({ browser }) => {
-    // The switch sits beside Contents where Contents is a block (phones and
-    // unpinned layouts); pinned desktops carry it on the rail instead.
-    for (const width of [320, 390]) {
-      const ctx = await browser.newContext({ viewport: { width, height: 900 } });
-      const p = await ctx.newPage();
-      await p.goto("/");
-      await p.evaluate(() => document.fonts.ready);
-      await expect(p.locator(".contents-head .motion-toggle")).toBeVisible();
-      // Each label's baseline: a zero-size inline-block placed after its last
-      // word sits on the line's baseline, whatever the font size.
-      const baselines = await p.evaluate(() =>
-        [".contents-h", ".contents-head .motion-toggle"].map((sel) => {
-          const el = document.querySelector(sel)!;
-          const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.textContent?.trim() ? 1 : 3) });
-          let last: Node | null = null;
-          for (let n = walker.nextNode(); n; n = walker.nextNode()) last = n;
-          const probe = document.createElement("span");
-          probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
-          last!.parentNode!.insertBefore(probe, last!.nextSibling);
-          const y = probe.getBoundingClientRect().top;
-          probe.remove();
-          return y;
-        }),
-      );
-      expect(Math.abs(baselines[0] - baselines[1]), `baselines at ${width}px: ${baselines}`).toBeLessThanOrEqual(0.5);
-      await ctx.close();
-    }
-  });
-
-  test("Contents, the rail and the chapter marks number the same four products", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator(".contents li .mono")).toHaveText(["01", "02", "03", "04"]);
-    await expect(page.locator("nav.rail .rail-num")).toHaveText(["00", "01", "02", "03", "04"]);
-    await expect(page.locator(".ch-mark")).toHaveText(["01 of 04", "02 of 04", "03 of 04", "04 of 04"]);
   });
 
   test("every page starts with a skip link to its one main landmark, and the 404 page leads home", async ({ page, request }) => {
@@ -422,7 +213,8 @@ test.describe("home", () => {
     for (const w of [320, 390, 430, 480, 820, 1440]) {
       const ctx = await browser.newContext({ viewport: { width: w, height: 900 } });
       const p = await ctx.newPage();
-      await p.goto("/");
+      // Reading pages: the site nav.
+      await p.goto("/writing");
       await p.evaluate(() => document.fonts.ready);
       for (const where of ["footer", ...(w >= 480 ? ["nav"] : [])]) {
         const link = p.locator(where).getByRole("link", { name: "LinkedIn" });
@@ -442,6 +234,16 @@ test.describe("home", () => {
       );
       expect(lines.every((n) => n === 1), `nav lines at ${w}px: ${lines}`).toBe(true);
       expect(await p.evaluate(() => document.documentElement.scrollWidth), `scroll width at ${w}px`).toBe(w);
+      // Home: the column's own nav and footer carry it at every width, on one row.
+      await p.goto("/");
+      for (const where of [".room-nav", ".room-foot"]) {
+        const link = p.locator(where).getByRole("link", { name: "LinkedIn" });
+        await expect(link, `home ${where} at ${w}px`).toBeVisible();
+        await expect(link).toHaveAttribute("href", "https://www.linkedin.com/in/jamesshin2");
+        await expect(link).toHaveAttribute("rel", /noopener/);
+      }
+      const tops = await p.locator(".room-nav a").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+      expect(new Set(tops).size, `home nav on one row at ${w}px`).toBe(1);
       await ctx.close();
     }
   });
@@ -465,41 +267,273 @@ test.describe("home", () => {
     // The footer links the same profiles a visitor can check.
     await expect(page.locator("footer").getByRole("link", { name: "GitHub" })).toHaveAttribute("href", "https://github.com/jamesshintech");
   });
-});
 
-test.describe("recordings", () => {
-  test("play when scrolled into view; under reduced motion hold the poster until Play is pressed", async ({ browser }) => {
-    for (const reducedMotion of ["no-preference", "reduce"] as const) {
-      const ctx = await browser.newContext({ reducedMotion });
+  test("the layout holds from 320px to 1440px: the column beside the room or over its lower half, targets at least 44px, never a sideways scroll", async ({ browser }) => {
+    for (const [w, h] of [[1440, 900], [1024, 768], [768, 1024], [390, 844], [320, 640]]) {
+      const ctx = await browser.newContext({ viewport: { width: w, height: h } });
       const p = await ctx.newPage();
       await p.goto("/");
-      const tile = p.locator("#squeeze");
-      await tile.scrollIntoViewIfNeeded();
-      const video = tile.locator("video");
-      const playing = () => video.evaluate((v: HTMLVideoElement) => !v.paused);
-      if (reducedMotion === "no-preference") {
-        await expect.poll(playing, { message: "plays in view" }).toBe(true);
-        await expect(tile.getByRole("button", { name: /play/i })).toHaveCount(0);
+      await p.evaluate(() => document.fonts.ready);
+      expect(await p.evaluate(() => document.documentElement.scrollWidth), `scroll width at ${w}px`).toBe(w);
+      const col = await p.locator(".room-col").evaluate((e) => e.getBoundingClientRect().toJSON() as DOMRect);
+      if (w >= 900) {
+        // Desktop: a fixed column on the left; the room has the rest.
+        expect(col.left).toBe(0);
+        expect(col.width).toBeLessThan(w * 0.5);
+        expect(col.height).toBe(h);
       } else {
-        const play = tile.getByRole("button", { name: /^play \d+s loop$/i });
-        await expect(play).toBeVisible();
-        await p.waitForTimeout(800);
-        expect(await playing(), "holds the poster under reduced motion").toBe(false);
-        await play.focus();
-        await p.keyboard.press("Enter");
-        await expect.poll(playing, { message: "plays once asked" }).toBe(true);
-        // The same button becomes Pause, and focus stays on it.
-        const control = tile.locator(".loop .play");
-        await expect(control).toHaveText("Pause loop");
-        await expect(control).toBeFocused();
-        await p.keyboard.press("Enter");
-        await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused), { message: "pauses when asked" }).toBe(true);
-        await expect(control).toHaveText(/^Play \d+s loop$/);
-        // The button sits outside the recording's link: pressing it must not open the store.
-        expect(ctx.pages(), "Play opened another page").toHaveLength(1);
+        // Phones: the room fills the top, the column starts 46% down (lib/room/runner.ts PHONE_COLUMN_TOP).
+        expect(Math.abs(col.top - h * 0.46), `column top at ${w}px`).toBeLessThanOrEqual(1);
+        expect(col.width).toBe(w);
       }
+      const short = await p.locator(".room-item, .room-nav a, .room-foot a").evaluateAll((els) =>
+        els.filter((e) => e.getBoundingClientRect().height < 44).map((e) => e.textContent?.trim().slice(0, 30)),
+      );
+      expect(short, `targets under 44px at ${w}px`).toEqual([]);
+      const spot = await p.locator(".room-spot").first().evaluate((e) => [e.getBoundingClientRect().width, e.getBoundingClientRect().height]);
+      expect(spot, "hotspot target").toEqual([48, 48]);
       await ctx.close();
     }
+  });
+});
+
+test.describe("room", () => {
+  test.describe.configure({ timeout: 180_000 });
+
+  test("three.js stays out of the first load; the room loads after, without errors, inside its budgets", async ({ page, request }) => {
+    // The first load: every script the HTML names. None of them is the room.
+    const html = await (await request.get("/")).text();
+    const scripts = [...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map((m) => m[1]);
+    expect(scripts.length).toBeGreaterThan(0);
+    for (const src of scripts) expect(await (await request.get(src)).text(), src).not.toContain("WebGLRenderer");
+
+    const errors = watchErrors(page);
+    await page.goto("/?debug=1&time=dusk");
+    await live(page);
+    await expect(page.locator("canvas")).toHaveCount(1);
+    const stats = await page.evaluate(() => {
+      const r = window.__room!;
+      return { calls: r.renderer.info.render.calls, triangles: r.renderer.info.render.triangles, programs: r.renderer.info.programs?.length ?? 0, time: r.room.timeName };
+    });
+    // Budgets (MengTo/threeui): about a hundred draw calls, 40k triangles.
+    expect(stats.calls, "draw calls").toBeLessThanOrEqual(110);
+    expect(stats.triangles, "triangles").toBeLessThanOrEqual(40_000);
+    expect(stats.programs, "shader programs").toBeLessThanOrEqual(40);
+    expect(stats.time).toBe("dusk");
+    // The debug meter shows only with ?debug=1.
+    await expect(page.locator(".room-meter")).toBeVisible();
+    expect(errors, "console errors").toEqual([]);
+  });
+
+  test("the light follows the visitor's clock, and the picture shown while it loads is the same light", async ({ browser }) => {
+    // Either side of the two hand-offs: day to dusk at 17:30, dusk to night at 19:30.
+    for (const [hour, name] of [[17.4, "day"], [17.6, "dusk"], [19.6, "night"]] as const) {
+      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      const p = await ctx.newPage();
+      await p.clock.setFixedTime(new Date(2026, 0, 1, Math.floor(hour), Math.round((hour % 1) * 60)));
+      await p.goto("/?debug=1&q=low");
+      await expect(p.locator("html")).toHaveAttribute("data-room-time", name);
+      expect(await p.locator(".room-stage").evaluate((e) => getComputedStyle(e).backgroundImage)).toContain(`/room/poster-${name}-wide.webp`);
+      await live(p);
+      expect(await p.evaluate(() => window.__room!.room.timeName), `the room at ${hour}h`).toBe(name);
+      await expect(p.locator(".room-caption")).toContainText(name === "day" ? "Daylight at your local time" : `${name[0].toUpperCase()}${name.slice(1)} at your local time`);
+      await ctx.close();
+    }
+  });
+
+  test("a row lights its object and pins its label; a product row opens a panel with its recording; Escape and Close return focus", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const p = await ctx.newPage();
+    const errors = watchErrors(p);
+    await p.goto("/?time=day");
+    await live(p);
+    await row(p, "essay").focus();
+    await expect(row(p, "essay")).toHaveClass(/is-active/);
+    await expect(p.locator(".room-spot[data-key='essay']")).toHaveClass(/is-active/);
+    // The view turns to the paper on the table, then the label is pinned beside it.
+    const label = p.locator(".room-pin[data-on] .room-pin-text");
+    await expect(label).toBeVisible();
+    await expect(label).toContainText("Billing Controls");
+    await expect(label).toContainText("Work sample");
+    // Beside its object, inside the room, never under the column.
+    const [labelBox, colBox] = [await label.boundingBox(), await p.locator(".room-col").boundingBox()];
+    expect(labelBox!.x).toBeGreaterThan(colBox!.x + colBox!.width);
+    expect(labelBox!.x + labelBox!.width).toBeLessThanOrEqual(1440);
+
+    const squeeze = row(p, "phone");
+    await squeeze.click();
+    const dialog = p.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("heading", { level: 2 })).toHaveText("Squeeze: The Estimation Duel");
+    await expect(dialog).toContainText("A head-to-head estimation duel for two players on one iPhone or iPad.");
+    await expect(dialog.getByRole("link", { name: "App Store" })).toHaveAttribute("href", /apps\.apple\.com/);
+    const video = dialog.locator("video");
+    await expect(video.locator("source[type='video/webm']")).toHaveAttribute("src", /\/video\/squeeze-loop\.webm$/);
+    await expect(video).toHaveAttribute("poster", /\/video\/squeeze-loop\.webp$/);
+    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => !v.paused), { message: "the recording plays" }).toBe(true);
+    await expect(dialog.getByRole("button", { name: "Close" })).toBeFocused();
+    expect(ctx.pages(), "the row opened the panel, not the store").toHaveLength(1);
+    await expect(squeeze).toHaveClass(/is-active/);
+    // The panel names the item, so no label sits under it.
+    await expect(p.locator(".room-pin-text")).toHaveCount(0);
+    await p.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(squeeze).toBeFocused();
+
+    await row(p, "map").click();
+    await expect(p.getByRole("dialog").getByRole("heading", { level: 2 })).toHaveText("HighSchoolTrends.org");
+    await expect(p.getByRole("dialog").getByRole("link", { name: "Visit the site" })).toHaveAttribute("href", /highschooltrends\.org/);
+    await p.getByRole("dialog").getByRole("button", { name: "Close" }).click();
+    await expect(p.getByRole("dialog")).toHaveCount(0);
+    await expect(row(p, "map")).toBeFocused();
+    expect(errors, "console errors").toEqual([]);
+    await ctx.close();
+  });
+
+  test("an object opens the same panel; the board drops a bead first", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const p = await ctx.newPage();
+    await p.goto("/?debug=1&time=dusk");
+    await live(p);
+    const meshes = () => p.evaluate(() => {
+      let n = 0;
+      window.__room!.scene.traverse(() => n++);
+      return n;
+    });
+    const before = await meshes();
+    await p.locator(".room-spot[data-key='board']").click();
+    await expect.poll(meshes, { message: "a bead was added" }).toBe(before + 1);
+    const dialog = p.getByRole("dialog");
+    await expect(dialog.getByRole("heading", { level: 2 })).toHaveText("Yonmoku: 3D Four in a Row");
+    await expect(dialog.locator("video source[type='video/webm']")).toHaveAttribute("src", /yonmoku-loop\.webm$/);
+    await expect(dialog.getByRole("button", { name: "Close" })).toBeFocused();
+    // Hotspots are pointer shortcuts hidden from assistive technology; focus returns to the row.
+    await p.keyboard.press("Escape");
+    await expect(row(p, "board")).toBeFocused();
+    // A work sample's object opens a panel that links the document.
+    await p.locator(".room-spot[data-key='essay']").click();
+    await expect(p.getByRole("dialog").getByRole("link", { name: "Read the essay" })).toHaveAttribute("href", BILLING);
+    await expect(p.getByRole("dialog").locator("video")).toHaveCount(0);
+    await ctx.close();
+  });
+
+  test("under reduced motion the room is still and a recording waits for Play, which keeps focus", async ({ browser }) => {
+    const ctx = await browser.newContext({ reducedMotion: "reduce", viewport: { width: 1440, height: 900 } });
+    const p = await ctx.newPage();
+    await p.goto("/?debug=1");
+    await live(p);
+    expect(await p.evaluate(() => window.__room!.stage.running), "no frame loop").toBe(false);
+    // Nothing moves on its own, so there is no pause switch.
+    await expect(p.locator(".motion-toggle")).toBeHidden();
+    await row(p, "phone").click();
+    const dialog = p.getByRole("dialog");
+    const video = dialog.locator("video");
+    const play = dialog.getByRole("button", { name: /^play \d+s loop$/i });
+    await expect(play).toBeVisible();
+    await p.waitForTimeout(800);
+    expect(await video.evaluate((v: HTMLVideoElement) => v.paused), "holds the poster").toBe(true);
+    await play.focus();
+    await p.keyboard.press("Enter");
+    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => !v.paused), { message: "plays once asked" }).toBe(true);
+    // The same button becomes Pause, and focus stays on it.
+    const control = dialog.locator(".loop .play");
+    await expect(control).toHaveText("Pause loop");
+    await expect(control).toBeFocused();
+    await p.keyboard.press("Enter");
+    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused), { message: "pauses when asked" }).toBe(true);
+    // The button sits outside the recording's link: pressing it must not open the store.
+    expect(ctx.pages(), "Play opened another page").toHaveLength(1);
+    await ctx.close();
+  });
+
+  test("a pause switch stops the room, keeps focus, and is remembered", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const p = await ctx.newPage();
+    await p.goto("/?debug=1");
+    await live(p);
+    expect(await p.evaluate(() => window.__room!.stage.running), "the room moves").toBe(true);
+    const toggle = p.locator(".motion-toggle");
+    await expect(toggle).toHaveText("Pause motion");
+    await toggle.focus();
+    await p.keyboard.press("Enter");
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect(toggle).toHaveText("Play motion");
+    await expect(toggle).toBeFocused();
+    expect(await p.evaluate(() => window.__room!.stage.running), "paused").toBe(false);
+    // Remembered, and restored before the room starts.
+    await p.reload();
+    await expect(p.locator("html")).toHaveAttribute("data-motion", "paused");
+    await live(p);
+    expect(await p.evaluate(() => window.__room!.stage.running), "still paused after a reload").toBe(false);
+    await p.locator(".motion-toggle").click();
+    await expect.poll(() => p.evaluate(() => window.__room!.stage.running)).toBe(true);
+    await ctx.close();
+  });
+
+  test("without WebGL 2, or with Save-Data on, the room is its picture and the page loses nothing", async ({ browser }) => {
+    const blockers = {
+      "no WebGL 2": () => {
+        const get = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, kind: string, ...rest: unknown[]) {
+          return kind === "webgl2" ? null : (get as (...a: unknown[]) => unknown).call(this, kind, ...rest);
+        } as typeof get;
+      },
+      "Save-Data": () => {
+        Object.defineProperty(navigator, "connection", { value: { saveData: true }, configurable: true });
+      },
+    };
+    for (const [why, block] of Object.entries(blockers)) {
+      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      const p = await ctx.newPage();
+      const errors = watchErrors(p);
+      await p.addInitScript(block);
+      await p.goto("/?time=night");
+      await p.waitForSelector(".room[data-state='picture']", { state: "attached" });
+      await expect(p.locator("canvas"), why).toHaveCount(0);
+      expect(await p.locator(".room-stage").evaluate((e) => getComputedStyle(e).backgroundImage)).toContain("/room/poster-night-wide.webp");
+      // The panels still work: they never needed the room.
+      await row(p, "weeks").click();
+      await expect(p.getByRole("dialog").getByRole("heading", { level: 2 })).toHaveText("Vitality Weeks");
+      expect(errors, `${why}: console errors`).toEqual([]);
+      await ctx.close();
+    }
+  });
+
+  test("on a phone the panel is a sheet from the bottom, and hotspots sit in the room above the column", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage();
+    await p.goto("/?time=day");
+    await live(p);
+    for (const spot of await p.locator(".room-spot[data-on]").all()) {
+      const box = (await spot.boundingBox())!;
+      expect(box.y + box.height / 2, "hotspot above the column").toBeLessThan(844 * 0.46);
+    }
+    expect(await p.locator(".room-spot[data-on]").count(), "some objects are in view").toBeGreaterThan(0);
+    await row(p, "board").tap();
+    const box = (await p.getByRole("dialog").boundingBox())!;
+    expect(Math.round(box.x)).toBe(0);
+    expect(Math.round(box.width)).toBe(390);
+    expect(Math.round(box.y + box.height)).toBe(844);
+    expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+    // The page behind the sheet dims, and a tap there closes it.
+    await p.locator(".room-scrim").tap({ position: { x: 195, y: 40 } });
+    await expect(p.getByRole("dialog")).toHaveCount(0);
+    await expect(row(p, "board")).toBeFocused();
+    await ctx.close();
+  });
+
+  test("leaving the page releases the room, and coming back builds it again", async ({ page }) => {
+    await page.goto("/?debug=1");
+    await live(page);
+    await page.locator(".room-nav").getByRole("link", { name: "Writing" }).click();
+    await page.waitForURL("**/writing");
+    await expect.poll(() => page.evaluate(() => window.__roomDisposals ?? 0), { message: "disposed once" }).toBe(1);
+    expect(await page.evaluate(() => window.__room === undefined)).toBe(true);
+    await expect(page.locator("canvas")).toHaveCount(0);
+    await page.goBack();
+    await live(page);
+    await expect(page.locator("canvas")).toHaveCount(1);
+    expect(await page.evaluate(() => window.__room !== undefined)).toBe(true);
   });
 });
 

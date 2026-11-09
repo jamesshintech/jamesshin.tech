@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { isMotionPaused, setMotionPaused, subscribeMotion } from "@/lib/motion";
 
-// The pause switch for the recordings, the only things that move on their own. It is a real
+// The pause switch for what moves on its own: the room and the recordings. It is a real
 // toggle button (aria-pressed), keeps focus when pressed, and is hidden under
 // prefers-reduced-motion, where nothing moves on its own in the first place.
 export function MotionToggle({ className = "" }: { className?: string }) {
