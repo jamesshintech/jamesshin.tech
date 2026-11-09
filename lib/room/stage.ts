@@ -227,7 +227,10 @@ export function createStage(
     const budget = frameBudget(now, activeUntil, tier.frameCap);
     if (now - lastFrame < budget - 2) return;
     const gap = lastFrame ? now - lastFrame : budget;
-    const dt = Math.min(0.05, gap / 1000);
+    // Real elapsed time (up to a quarter second), so eases such as the
+    // camera's turn take the same wall time on a slow device as a fast one;
+    // the ripples keep their own fixed 60 Hz step.
+    const dt = Math.min(0.25, gap / 1000);
     lastFrame = now;
     frames++;
     stage.onFrame?.(now / 1000, dt);

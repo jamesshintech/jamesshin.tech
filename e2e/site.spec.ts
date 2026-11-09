@@ -577,16 +577,34 @@ test.describe("room", () => {
     await ctx.close();
   });
 
-  test("bugs that lived between flags: a late pick, hover over focus, a hotspot that slid away, a right-click drag, a paused bead's shadow", async ({ browser }) => {
+  // Bugs that lived between flags (lib/room/state.ts now holds those states).
+  async function desk(browser: import("@playwright/test").Browser) {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const p = await ctx.newPage();
     await p.goto("/?debug=1&time=day&q=low");
     await live(p);
+    return { ctx, p };
+  }
+
+  test("a board pick still waiting for its bead never opens over a later choice, or after Escape", async ({ browser }) => {
+    const { ctx, p } = await desk(browser);
+    await p.locator(".room-spot[data-key='board']").click();
+    await row(p, "phone").click();
+    await p.waitForTimeout(1000);
+    await expect(p.getByRole("dialog").getByRole("heading", { level: 2 })).toHaveText("Squeeze: The Estimation Duel");
+    await p.keyboard.press("Escape");
+    await p.locator(".room-spot[data-key='board']").click();
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(1000);
+    await expect(p.getByRole("dialog")).toHaveCount(0);
+    await ctx.close();
+  });
+
+  test("hover never takes focus's highlight; a hotspot under the pointer and a right-button drag leave the view where it is", async ({ browser }) => {
+    const { ctx, p } = await desk(browser);
     const direction = () => p.evaluate(() => { const c = window.__room!.camera; const d = c.getWorldDirection(c.position.clone()); return [d.x, d.y, d.z]; });
     // A turn toward an object moves the view by tenths; easing leaves a tail of thousandths.
     const turned = (a: number[], b: number[]) => Math.max(...a.map((n, i) => Math.abs(n - b[i]))) > 0.01;
-    // Wait for the view to stop easing. On a software renderer (CI) frames are
-    // slow and the ease advances at most 0.05 s a frame, so this takes longer.
     const atRest = async () => {
       let prev = await direction();
       for (let i = 0; i < 60; i++) {
@@ -598,19 +616,6 @@ test.describe("room", () => {
       throw new Error("the view never came to rest");
     };
 
-    // A pick still waiting for its bead must not open over a later choice.
-    await p.locator(".room-spot[data-key='board']").click();
-    await row(p, "phone").click();
-    await p.waitForTimeout(1000);
-    await expect(p.getByRole("dialog").getByRole("heading", { level: 2 })).toHaveText("Squeeze: The Estimation Duel");
-    await p.keyboard.press("Escape");
-    // Escape while a pick is pending: nothing opens later.
-    await p.locator(".room-spot[data-key='board']").click();
-    await p.keyboard.press("Escape");
-    await p.waitForTimeout(1000);
-    await expect(p.getByRole("dialog")).toHaveCount(0);
-
-    // A mouse passing over another row does not take the highlight from the focused one.
     await row(p, "essay").focus();
     await row(p, "map").hover();
     await p.mouse.move(1000, 850);
@@ -618,9 +623,6 @@ test.describe("room", () => {
     await expect(row(p, "map")).not.toHaveClass(/is-active/);
     await row(p, "essay").evaluate((e) => (e as HTMLElement).blur());
 
-    // A hotspot under the pointer lights its object without turning the view, so the dot stays put.
-    await p.mouse.move(1000, 850);
-    // Let the view finish easing from the focused row before measuring.
     const at = await atRest();
     const spot = p.locator(".room-spot[data-key='phone']");
     const before = (await spot.boundingBox())!;
@@ -632,7 +634,6 @@ test.describe("room", () => {
     // Under the cursor: well inside its 48px target (the old turn slid it hundreds of pixels).
     expect(Math.abs(after.x - before.x) + Math.abs(after.y - before.y), "the dot stayed under the cursor").toBeLessThan(12);
 
-    // Dragging with the right button (or any but the primary one) does not turn the view.
     await p.mouse.move(1000, 600);
     await p.mouse.down({ button: "right" });
     await p.mouse.move(1200, 500, { steps: 8 });
@@ -640,8 +641,11 @@ test.describe("room", () => {
     await p.mouse.move(1100, 450, { steps: 4 });
     await p.waitForTimeout(800);
     expect(turned(await direction(), at), "a right-button drag does not turn the view").toBe(false);
+    await ctx.close();
+  });
 
-    // With motion paused, a dropped bead still gets its shadow (the shadow pass runs once).
+  test("with motion paused, a dropped bead still gets its shadow", async ({ browser }) => {
+    const { ctx, p } = await desk(browser);
     await p.locator(".motion-toggle").click();
     await expect.poll(() => p.evaluate(() => window.__room!.stage.running)).toBe(false);
     await p.evaluate(() => {
