@@ -585,6 +585,18 @@ test.describe("room", () => {
     const direction = () => p.evaluate(() => { const c = window.__room!.camera; const d = c.getWorldDirection(c.position.clone()); return [d.x, d.y, d.z]; });
     // A turn toward an object moves the view by tenths; easing leaves a tail of thousandths.
     const turned = (a: number[], b: number[]) => Math.max(...a.map((n, i) => Math.abs(n - b[i]))) > 0.01;
+    // Wait for the view to stop easing. On a software renderer (CI) frames are
+    // slow and the ease advances at most 0.05 s a frame, so this takes longer.
+    const atRest = async () => {
+      let prev = await direction();
+      for (let i = 0; i < 60; i++) {
+        await p.waitForTimeout(500);
+        const now = await direction();
+        if (Math.max(...now.map((n, k) => Math.abs(n - prev[k]))) < 0.001) return now;
+        prev = now;
+      }
+      throw new Error("the view never came to rest");
+    };
 
     // A pick still waiting for its bead must not open over a later choice.
     await p.locator(".room-spot[data-key='board']").click();
@@ -609,8 +621,7 @@ test.describe("room", () => {
     // A hotspot under the pointer lights its object without turning the view, so the dot stays put.
     await p.mouse.move(1000, 850);
     // Let the view finish easing from the focused row before measuring.
-    await p.waitForTimeout(2500);
-    const at = await direction();
+    const at = await atRest();
     const spot = p.locator(".room-spot[data-key='phone']");
     const before = (await spot.boundingBox())!;
     await spot.hover();
