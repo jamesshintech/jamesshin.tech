@@ -322,7 +322,7 @@ test.describe("room", () => {
     for (const src of scripts) expect(await (await request.get(src)).text(), src).not.toContain("WebGLRenderer");
 
     const errors = watchErrors(page);
-    await page.goto("/?debug=1&time=dusk");
+    await page.goto("/?debug=1&time=dusk&q=high");
     await live(page);
     await expect(page.locator("canvas")).toHaveCount(1);
     const stats = await page.evaluate(() => {
@@ -334,6 +334,30 @@ test.describe("room", () => {
     expect(stats.triangles, "triangles").toBeLessThanOrEqual(40_000);
     expect(stats.programs, "shader programs").toBeLessThanOrEqual(40);
     expect(stats.time).toBe("dusk");
+    // The shadow map is drawn only when a shadow moves: resting frames skip
+    // that pass (a second draw of every caster), a change of light draws it.
+    // (three resets info.render after the shadow pass, so the pass is counted
+    // here directly.)
+    const shadowPasses = await page.evaluate(() => {
+      const r = window.__room!;
+      const sm = r.renderer.shadowMap;
+      const render = sm.render;
+      let drawn = 0;
+      sm.render = function (...args: Parameters<typeof render>) {
+        // Off-screen renders (the water's sky reflection, the ripples) pass no
+        // shadow-casting lights, and three skips the pass for them.
+        if (sm.enabled && args[0].length > 0 && (sm.autoUpdate || sm.needsUpdate)) drawn++;
+        return render.apply(this, args);
+      };
+      for (let i = 0; i < 5; i++) r.stage.renderOnce();
+      const atRest = drawn;
+      r.room.setPhase(1.5);
+      r.stage.renderOnce();
+      r.stage.renderOnce();
+      sm.render = render;
+      return { atRest, relit: drawn - atRest };
+    });
+    expect(shadowPasses, "shadow passes: none at rest, one per change of light").toEqual({ atRest: 0, relit: 1 });
     // The debug meter shows only with ?debug=1.
     await expect(page.locator(".room-meter")).toBeVisible();
     expect(errors, "console errors").toEqual([]);
@@ -531,6 +555,68 @@ test.describe("room", () => {
     await p.locator(".room-scrim").tap({ position: { x: 195, y: 40 } });
     await expect(p.getByRole("dialog")).toHaveCount(0);
     await expect(row(p, "board")).toBeFocused();
+    await ctx.close();
+  });
+
+  test("where WebGL is drawn by the CPU the room stays its picture, so it never pins a processor", async ({ browser }) => {
+    // The browser reports software WebGL (SwiftShader, llvmpipe, a blocklisted
+    // GPU) as a major performance caveat. Stubbed here so the check holds on
+    // any test machine.
+    const caveat = () => {
+      const get = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, kind: string, attrs?: { failIfMajorPerformanceCaveat?: boolean }) {
+        return kind === "webgl2" && attrs?.failIfMajorPerformanceCaveat ? null : (get as (...a: unknown[]) => unknown).call(this, kind, attrs);
+      } as typeof get;
+    };
+    for (const [url, want] of [["/?time=day", "picture"], ["/?time=day&q=low", "live"]] as const) {
+      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      const p = await ctx.newPage();
+      const errors = watchErrors(p);
+      await p.addInitScript(caveat);
+      await p.goto(url);
+      // A forced tier (testing only) runs it anyway.
+      await p.waitForSelector(`.room[data-state='${want}']`, { state: "attached", timeout: 90_000 });
+      await expect(p.locator("canvas")).toHaveCount(want === "live" ? 1 : 0);
+      expect(errors, `${url}: console errors`).toEqual([]);
+      await ctx.close();
+    }
+  });
+
+  test("at rest it draws at most 30 frames a second; on a phone it stops while the column or a panel covers it", async ({ browser }) => {
+    const desk = await browser.newContext({ viewport: { width: 960, height: 540 } });
+    const d = await desk.newPage();
+    await d.goto("/?debug=1&q=high&dpr=0.25&time=day");
+    await live(d);
+    await d.waitForTimeout(3000); // past the start
+    const rate = await d.evaluate(async () => {
+      const s = window.__room!.stage;
+      const f0 = s.frames;
+      await new Promise((r) => setTimeout(r, 2000));
+      return (s.frames - f0) / 2;
+    });
+    // At a quarter of a pixel per pixel the scene is cheap enough that only
+    // the scheduler limits the rate, even where WebGL is software (CI).
+    expect(rate, "frames a second at rest").toBeLessThanOrEqual(31);
+    expect(rate, "still drawing").toBeGreaterThan(0);
+    await desk.close();
+
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    const p = await ctx.newPage();
+    await p.goto("/?debug=1&q=low&time=day");
+    await live(p);
+    const running = () => p.evaluate(() => window.__room!.stage.running);
+    expect(await running(), "drawing while the room shows").toBe(true);
+    await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await expect.poll(running, { message: "stops under the column" }).toBe(false);
+    await p.evaluate(() => window.scrollTo(0, 0));
+    await expect.poll(running, { message: "starts again when the room shows" }).toBe(true);
+    // Opened from its object, so the page stays where it is: only the sheet covers the room.
+    await p.locator(".room-spot[data-key='board']").tap();
+    await expect(p.getByRole("dialog")).toBeVisible();
+    expect(await p.evaluate(() => scrollY), "page did not scroll").toBe(0);
+    await expect.poll(running, { message: "stops under the panel" }).toBe(false);
+    await p.keyboard.press("Escape");
+    await expect.poll(running, { message: "starts again when the panel closes" }).toBe(true);
     await ctx.close();
   });
 

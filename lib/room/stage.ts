@@ -1,6 +1,8 @@
 // The room's runtime: one renderer sized to its canvas, a device tier, a
-// frame loop that runs only while the canvas is on screen, the tab is visible
-// and motion is wanted, still frames on request otherwise, adaptive
+// frame loop that runs only while the room can be seen (its uncovered part
+// is on screen, nothing covers it, the tab is visible) and motion is wanted,
+// still frames on request otherwise, 30 frames a second at rest and the
+// tier's full rate only just after the visitor does something, adaptive
 // resolution, and context-loss handling. Device tiers, the pixel-ratio caps
 // and the frame meter's thresholds follow MengTo/threeui (PreviewFpsMeter:
 // 55 good, 45 watch, frames over 25 ms counted as slow).
@@ -39,20 +41,43 @@ export type Stage = {
   onResize: ((w: number, h: number) => void) | null;
   meter: Meter | null;
   readonly running: boolean;
+  /** Frames the loop has drawn (not requested still frames). */
+  readonly frames: number;
   /** Draw one frame soon, if the loop is not running. */
   request(): void;
   renderOnce(): void;
   /** Still: the loop stops and only requested frames are drawn (reduced motion, or the visitor paused motion). */
   setStill(still: boolean): void;
+  /** Covered: something opaque is over the room (a phone's panel sheet); the loop stops. */
+  setCovered(covered: boolean): void;
+  /** Run at the tier's full frame rate for a while: the visitor is doing something. */
+  boost(ms: number): void;
   start(): void;
   resize(): void;
   dispose(): void;
 };
 
+/** The resting frame rate: steam, water and bamboo are slow, and half the frames is half the heat. */
+const REST_FPS = 30;
+
+/** Milliseconds a frame may take: the tier's full rate just after the visitor did something, 30 a second otherwise. */
+export function frameBudget(now: number, activeUntil: number, frameCap: number): number {
+  return 1000 / (now < activeUntil ? frameCap : Math.min(REST_FPS, frameCap));
+}
+
 export function createStage(
   canvas: HTMLCanvasElement,
   tier: Tier,
-  { signal, onContextLost }: { signal: AbortSignal; onContextLost: () => void },
+  {
+    signal,
+    onContextLost,
+    watch = canvas,
+  }: {
+    signal: AbortSignal;
+    onContextLost: () => void;
+    /** The part of the page through which the room is seen; the loop stops when it scrolls away. */
+    watch?: Element;
+  },
 ): Stage {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: !tier.low || devicePixelRatio < 2, powerPreference: "default" });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, tier.dprCap));
@@ -64,7 +89,10 @@ export function createStage(
   let started = false;
   let running = false;
   let still = tier.reduced;
+  let covered = false;
   let visible = true;
+  let activeUntil = 0;
+  let frames = 0;
   let lost = false;
   let disposed = false;
   let raf = 0;
@@ -79,12 +107,22 @@ export function createStage(
     get running() {
       return running;
     },
+    get frames() {
+      return frames;
+    },
     request,
     renderOnce,
     setStill(next) {
       still = next;
       sync();
       if (!running) request();
+    },
+    setCovered(next) {
+      covered = next;
+      sync();
+    },
+    boost(ms) {
+      activeUntil = Math.max(activeUntil, performance.now() + ms);
     },
     // Nothing runs until the room exists: frames spent waiting on textures
     // would read as a slow GPU and step the resolution down for nothing.
@@ -120,52 +158,59 @@ export function createStage(
   const ro = new ResizeObserver(resize);
   ro.observe(canvas);
 
-  // Adaptive resolution: when frames run more than a third over budget for
-  // about a second and a half, step the pixel ratio down, so a slow GPU gets
-  // a softer image, never a hot laptop.
-  const budget = 1000 / tier.frameCap;
-  const minDelta = budget - 2;
+  // Adaptive resolution: when frames run more than a third over their budget
+  // (at whichever rate applies) for about a second and a half, step the pixel
+  // ratio down, so a slow GPU gets a softer image, never a hot laptop.
   const steps = [tier.dprCap, 1.4, 1.15, 1].filter((d, i, a) => i === 0 || d < a[0]);
   let level = 0;
-  let ema = budget;
+  let over = 1; // moving average of frame gap / budget
   let settled = 0;
   const tick = (now: number) => {
     raf = requestAnimationFrame(tick);
-    if (now - lastFrame < minDelta) return;
+    const budget = frameBudget(now, activeUntil, tier.frameCap);
+    if (now - lastFrame < budget - 2) return;
     const gap = lastFrame ? now - lastFrame : budget;
     const dt = Math.min(0.05, gap / 1000);
     lastFrame = now;
+    frames++;
     stage.onFrame?.(now / 1000, dt);
     stage.meter?.sample(now);
-    ema = ema * 0.95 + gap * 0.05;
-    if (++settled > 90 && ema > budget * 1.35 && level < steps.length - 1) {
+    over = over * 0.95 + Math.min(4, gap / budget) * 0.05;
+    if (++settled > 90 && over > 1.35 && level < steps.length - 1) {
       level++;
       renderer.setPixelRatio(Math.min(devicePixelRatio || 1, steps[level]));
       resize();
       settled = 0;
-      ema = budget;
+      over = 1;
     }
   };
 
   function sync() {
-    const want = started && visible && !document.hidden && !still && !lost && !disposed;
+    const want = started && visible && !covered && !document.hidden && !still && !lost && !disposed;
     if (want && !running) {
       running = true;
       lastFrame = 0;
       settled = 0;
+      over = 1;
       stage.meter?.reset();
       raf = requestAnimationFrame(tick);
     } else if (!want && running) {
       running = false;
       cancelAnimationFrame(raf);
-      stage.meter?.idle(document.hidden ? "tab hidden" : !visible ? "off screen" : "still");
+      stage.meter?.idle(document.hidden ? "tab hidden" : !visible ? "off screen" : covered ? "covered" : "still");
     }
   }
-  const io = new IntersectionObserver(([entry]) => {
-    visible = entry?.isIntersecting ?? true;
-    sync();
-  });
-  io.observe(canvas);
+  // The canvas is fixed and always "on screen"; what matters is whether the
+  // part of the page the room shows through is. Under a tenth of it: stop.
+  const io = new IntersectionObserver(
+    ([entry]) => {
+      visible = (entry?.intersectionRatio ?? 1) >= 0.1;
+      sync();
+      if (visible && !running) request();
+    },
+    { threshold: [0, 0.1, 0.25] },
+  );
+  io.observe(watch);
   document.addEventListener("visibilitychange", sync, { signal });
 
   canvas.addEventListener(

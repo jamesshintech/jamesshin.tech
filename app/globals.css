@@ -270,6 +270,17 @@ html[data-room-time="night"] .room-stage {
 .room[data-state="live"] .room-canvas:active {
   cursor: grabbing;
 }
+/* The part of the page the room shows through (lib/room/stage.ts watches
+   it): the window on desktop, the strip above the column on phones. It
+   scrolls with the page; when it has gone, the room stops drawing. */
+.room-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 100vh;
+  pointer-events: none;
+}
 /* Yonmoku's own 0.18 vignette, drawn by the compositor rather than the scene. */
 .room-vignette {
   position: fixed;
@@ -620,6 +631,9 @@ html[data-room-time="night"] .room-stage {
   }
   .room-canvas {
     touch-action: pan-y;
+  }
+  .room-strip {
+    height: 46vh;
   }
   .room-vignette {
     background: linear-gradient(transparent 30%, rgba(10, 10, 9, 0.35));

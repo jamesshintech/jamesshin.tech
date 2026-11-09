@@ -372,6 +372,12 @@ function canvasTex(w: number, h: number, draw: (ctx: CanvasRenderingContext2D, w
   return t;
 }
 
+// Hand the main thread back between stages of the build, so a click or a
+// scroll during it is answered (scheduler.yield where the browser has it).
+type Scheduler = { yield?: () => Promise<void> };
+const breathe = () =>
+  (globalThis as { scheduler?: Scheduler }).scheduler?.yield?.() ?? new Promise<void>((done) => setTimeout(done, 0));
+
 export type Room = {
   scene: THREE.Scene;
   anchors: Record<RoomKey, THREE.Vector3>;
@@ -390,6 +396,13 @@ type Frame = (t: number, camera: THREE.Camera, dt: number) => void;
 export async function buildRoom(renderer: THREE.WebGLRenderer, { phase, low = false, texBase = "/room/tex/" }: { phase: number; low?: boolean; texBase?: string }): Promise<Room> {
   let T = blendTime(phase);
   const clock: Uniform<number> = { value: 0 };
+  // The shadow map is drawn only when something that casts a shadow moves:
+  // the sun (a change of light) or a falling bead. Everything else that
+  // moves (steam, water, the bamboo's sway, the paper's shadows) casts none,
+  // so redrawing it every frame would double the draw calls for nothing.
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
+  const reshadow = () => (renderer.shadowMap.needsUpdate = true);
   const tex = await loadTextures(texBase, renderer);
   const scene = new THREE.Scene();
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -430,6 +443,8 @@ export async function buildRoom(renderer: THREE.WebGLRenderer, { phase, low = fa
     pine: new THREE.MeshStandardMaterial({ color: 0x2f3d2c, roughness: 0.9, flatShading: true }),
     glaze: new THREE.MeshPhysicalMaterial({ color: 0x6f7d73, roughness: 0.2, clearcoat: 1 }),
   };
+
+  await breathe();
 
   // Tatami: eight mats at real proportions, one instanced mesh. The pattern
   // never runs four corners together.
@@ -596,6 +611,8 @@ export async function buildRoom(renderer: THREE.WebGLRenderer, { phase, low = fa
   camellia.position.set(bx + 0.02, 0.72, bz + 0.13);
   scene.add(camellia);
 
+  await breathe();
+
   // Chabudai.
   const table = new THREE.Group();
   table.position.set(0, 0, 0.15);
@@ -666,6 +683,7 @@ export async function buildRoom(renderer: THREE.WebGLRenderer, { phase, low = fa
         board.remove(d.mesh);
         counts[d.slot]--;
       }
+      reshadow();
     }
     const slot = order.find((i) => counts[i] < 4);
     if (slot === undefined) return;
@@ -688,6 +706,8 @@ export async function buildRoom(renderer: THREE.WebGLRenderer, { phase, low = fa
     const t2 = (2 * b2) / g;
     for (const d of dropped) {
       const e = t - d.t0;
+      // Falling or bouncing, plus one frame at rest: its shadow moves with it.
+      if (e < tFall + t1 + t2 + 0.1) reshadow();
       let y = 0;
       if (e < tFall) y = H0 - 0.5 * g * e * e;
       else if (e - tFall < t1) y = b1 * (e - tFall) - 0.5 * g * (e - tFall) ** 2;
@@ -836,6 +856,8 @@ export async function buildRoom(renderer: THREE.WebGLRenderer, { phase, low = fa
   }
   scene.add(bonsai);
 
+  await breathe();
+
   // ---------- outside ----------
   // Engawa: planks level with the tatami, then the eave above.
   const E0 = -H - 0.05;
@@ -936,6 +958,8 @@ export async function buildRoom(renderer: THREE.WebGLRenderer, { phase, low = fa
   scene.add(basin);
   const waterY = D - 0.035;
 
+  await breathe();
+
   // The water reflects this garden's own sky, not a studio; the reflection is
   // rebuilt only when the light has moved enough to see.
   const skyScene = new THREE.Scene();
@@ -962,7 +986,7 @@ export async function buildRoom(renderer: THREE.WebGLRenderer, { phase, low = fa
     return next.texture;
   };
 
-  const wn = waterNormal(256);
+  const wn = waterNormal(128);
   wn.repeat.set(2.4, 1.4);
   const waterMat = new THREE.MeshPhysicalMaterial({
     color: T.water, roughness: 0.04, metalness: 0, normalMap: wn, normalScale: new THREE.Vector2(0.22, 0.22),
@@ -1060,6 +1084,8 @@ export async function buildRoom(renderer: THREE.WebGLRenderer, { phase, low = fa
     });
   });
 
+  await breathe();
+
   // The planted bed along the wall: moss, lantern, boulders, maple.
   const bed = new THREE.Mesh(boxGeo(gx[1] - gx[0], 0.16, 0.95, 1.2, (gx[0] + gx[1]) / 2, D, wallZ + 0.47), M.moss);
   bed.receiveShadow = true;
@@ -1123,6 +1149,8 @@ export async function buildRoom(renderer: THREE.WebGLRenderer, { phase, low = fa
   scene.add(instanced(new THREE.BoxGeometry(1, 1, 1), texMat(tex, "wood", { color: 0x8e867b, rough: 0.9, normal: 0.9 }), boards, { receive: true }));
   scene.add(new THREE.Mesh(boxGeo(gx[1] - gx[0], wallH, 0.02, 1, (gx[0] + gx[1]) / 2, D + wallH / 2, wallZ - 0.06), new THREE.MeshStandardMaterial({ color: 0x5f5951, roughness: 1 })));
   scene.add(new THREE.Mesh(boxGeo(gx[1] - gx[0], 0.05, 0.12, 1, (gx[0] + gx[1]) / 2, D + wallH + 0.025, wallZ - 0.03), M.post));
+
+  await breathe();
 
   // Bamboo grove behind the wall. Stems and leaves sway a few centimetres in
   // the vertex shader, so the motion costs no extra draw calls.
@@ -1253,6 +1281,7 @@ gl_Position = projectionMatrix * mvPosition;`,
     for (const st of steam) st.material.color.copy(T.steam);
     domeMat.uniforms.top.value.copy(T.sky[1]);
     domeMat.uniforms.horizon.value.copy(T.sky[0]);
+    reshadow();
     if (envPhase === null || Math.abs(next - envPhase) > 0.08) {
       waterMat.envMap = rebuildSkyEnv();
       envPhase = next;

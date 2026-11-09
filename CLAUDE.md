@@ -26,6 +26,11 @@ decisions log). Ask before departing from it.
 ## The room
 - Budgets, enforced by e2e: about 100 draw calls, 40k triangles, 40 shader
   programs; three.js never in the first load; everything released on unmount.
+- Never strain the device: 30 fps at rest (`frameBudget`), full rate only
+  after an interaction (`stage.boost`); stop when the strip the room shows
+  through scrolls away or a panel covers it; shadow map on demand
+  (`reshadow()` when a caster moves); software WebGL gets the picture.
+  `?q=low|high` forces the room on any WebGL 2 (tests rely on it).
 - After changing the scene, regenerate the pictures shown while it loads:
   `node scripts/room-posters.mjs` against `pnpm build && pnpm start`.
 - GLSL: never write a reversed `smoothstep` (edge0 >= edge1); it is undefined

@@ -20,6 +20,8 @@ export type RoomOptions = {
   host: HTMLElement;
   /** Measured on desktop: the view is offset so the room's subject sits beside it. */
   column: HTMLElement;
+  /** The part of the page the room shows through (on phones, the strip above the column); off screen, the room stops. */
+  strip: HTMLElement;
   spots: Map<RoomKey, HTMLElement>;
   pin: HTMLElement;
   /** Only with ?debug=1. */
@@ -34,6 +36,8 @@ export type RoomOptions = {
 export type RoomHandle = {
   setActive(key: RoomKey | null): void;
   setStill(still: boolean): void;
+  /** A panel is open. On phones it is a sheet over the room, which then stops. */
+  setPanel(open: boolean): void;
   /** A hotspot was chosen. The board drops a bead; returns how long to wait before opening the panel, so the bead lands first. */
   pick(key: RoomKey): number;
   dispose(): void;
@@ -92,11 +96,13 @@ export async function startRoom(o: RoomOptions): Promise<RoomHandle | null> {
   };
 
   try {
-    stage = createStage(canvas, tier, { signal, onContextLost: o.onLost });
+    stage = createStage(canvas, tier, { signal, onContextLost: o.onLost, watch: o.strip });
     stage.setStill(still);
     if (debug && o.meter) stage.meter = createMeter(o.meter, stage.renderer, tier);
     const phaseNow = chosenPhase(params);
+    performance.mark("room:build:start");
     room = await buildRoom(stage.renderer, { phase: phaseNow(), low: tier.low, texBase: "/room/tex/" });
+    performance.measure("room:build", "room:build:start");
     if (o.signal.aborted) {
       teardown();
       return null;
@@ -153,7 +159,16 @@ export async function startRoom(o: RoomOptions): Promise<RoomHandle | null> {
     h = H;
     frame();
   };
-  wide.addEventListener("change", () => s.resize(), { signal });
+  let panelOpen = false;
+  const cover = () => s.setCovered(panelOpen && !wide.matches);
+  wide.addEventListener(
+    "change",
+    () => {
+      cover();
+      s.resize();
+    },
+    { signal },
+  );
 
   const v = new THREE.Vector3();
   const project = (p: THREE.Vector3) => {
@@ -163,25 +178,30 @@ export async function startRoom(o: RoomOptions): Promise<RoomHandle | null> {
     return { x, y, on: v.z < 1 && x > side + 8 && x < w - 8 && y > 8 && y < h - below - 8 };
   };
 
+  // Hotspots and the label follow their objects every frame; a style is
+  // written only when it changes, so a still view costs no style work.
+  const last = new Map<HTMLElement, string>();
+  const put = (el: HTMLElement, p: { x: number; y: number; on: boolean }) => {
+    const key = p.on ? `${p.x.toFixed(1)},${p.y.toFixed(1)}` : "off";
+    if (last.get(el) === key) return false;
+    last.set(el, key);
+    if (p.on) {
+      el.dataset.on = "";
+      el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
+    } else delete el.dataset.on;
+    return true;
+  };
   let active: RoomKey | null = null;
   const place = () => {
-    for (const [key, el] of o.spots) {
-      const p = project(r.anchors[key]);
-      if (p.on) {
-        el.dataset.on = "";
-        el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
-      } else delete el.dataset.on;
-    }
-    const p = active ? project(r.anchors[active]) : null;
-    if (p?.on) {
-      o.pin.dataset.on = "";
+    for (const [key, el] of o.spots) put(el, project(r.anchors[key]));
+    const p = active ? project(r.anchors[active]) : { x: 0, y: 0, on: false };
+    if (put(o.pin, p) && p.on) {
       // The label sits on the side away from its neighbours (the essay's is
       // left of the paper, clear of the board), and flips near either edge.
       const left = LABEL_LEFT.has(active!) ? p.x - 240 > side : p.x > w - 240;
       if (left) o.pin.dataset.flip = "";
       else delete o.pin.dataset.flip;
-      o.pin.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
-    } else delete o.pin.dataset.on;
+    }
   };
 
   // The bath answers the pointer: the wave equation takes a drop wherever a
@@ -200,6 +220,7 @@ export async function startRoom(o: RoomOptions): Promise<RoomHandle | null> {
     (e) => {
       down = { x: e.clientX, y: e.clientY };
       drag = { x: e.clientX, y: e.clientY, yaw: want.yaw, pitch: want.pitch };
+      s.boost(2500);
       canvas.setPointerCapture(e.pointerId);
     },
     { signal },
@@ -211,6 +232,7 @@ export async function startRoom(o: RoomOptions): Promise<RoomHandle | null> {
         const k = 2.2 / Math.max(innerWidth, 600);
         want.yaw = clampYaw(drag.yaw + (e.clientX - drag.x) * k);
         want.pitch = clampPitch(drag.pitch + (e.clientY - drag.y) * k);
+        s.boost(2500);
         s.request();
         return;
       }
@@ -221,6 +243,7 @@ export async function startRoom(o: RoomOptions): Promise<RoomHandle | null> {
       if (hit?.uv) {
         r.rippleAt(hit.uv, 0.012);
         lastRipple = now;
+        s.boost(1500);
       }
     },
     { signal },
@@ -258,13 +281,19 @@ export async function startRoom(o: RoomOptions): Promise<RoomHandle | null> {
   // browser can (KHR_parallel_shader_compile), so the first frame never
   // stalls the page.
   s.onResize(canvas.clientWidth || innerWidth, canvas.clientHeight || innerHeight);
+  performance.mark("room:compile:start");
   if (s.renderer.extensions.has("KHR_parallel_shader_compile")) await s.renderer.compileAsync(r.scene, camera);
   else s.renderer.compile(r.scene, camera);
+  performance.measure("room:compile", "room:compile:start");
+  // Let the page breathe between compiling and the first frame.
+  await new Promise((done) => setTimeout(done, 0));
   if (o.signal.aborted) {
     teardown();
     return null;
   }
+  performance.mark("room:frame:start");
   s.resize();
+  performance.measure("room:first-frame", "room:frame:start");
   s.start();
 
   if (debug) window.__room = { renderer: s.renderer, scene: r.scene, camera, tier, stage: s, room: r };
@@ -280,17 +309,24 @@ export async function startRoom(o: RoomOptions): Promise<RoomHandle | null> {
         want.pitch = clampPitch(Math.atan2(d.y, Math.hypot(d.x, d.z)) * 0.9);
       }
       place();
+      // The view eases toward a chosen object; clearing the choice moves nothing.
+      if (key) s.boost(2500);
       s.request();
     },
     setStill(next) {
       still = tier.reduced || next;
       s.setStill(still);
     },
+    setPanel(open) {
+      panelOpen = open;
+      cover();
+    },
     pick(key) {
       if (key !== "board") return 0;
       const now = performance.now() / 1000;
       // Still: the bead is drawn where it lands.
       r.dropBead(still ? now - 10 : now);
+      s.boost(2500);
       s.request();
       return still ? 0 : 650;
     },

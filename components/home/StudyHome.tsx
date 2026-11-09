@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type MouseEvent } from "react";
 import type { Loop } from "@/data/projects";
 import type { RoomHandle, RoomKey, TimeName } from "@/lib/room/runner";
-import { hasWebGL2, savesData } from "@/lib/room/support";
+import { savesData, webglSupport } from "@/lib/room/support";
 import { isMotionPaused, subscribeMotion } from "@/lib/motion";
 import { VideoLoop } from "@/components/story/VideoLoop";
 import { MotionToggle } from "@/components/home/MotionToggle";
@@ -15,7 +15,9 @@ import { MotionToggle } from "@/components/home/MotionToggle";
 // and a work sample's row goes straight to the document. The column is
 // server-rendered and complete without JavaScript (every row is a real
 // link); the room loads after the page is idle, from its own chunk, and
-// until its first frame the room is a picture of itself.
+// until its first frame the room is a picture of itself. Where the room would
+// strain the device (WebGL drawn by the CPU) or was asked not to load
+// (Save-Data), it stays that picture.
 
 export type RoomItem = {
   key: RoomKey;
@@ -61,6 +63,7 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
   const paused = useSyncExternalStore(subscribeMotion, isMotionPaused, () => false);
 
   const hostRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
   const colRef = useRef<HTMLDivElement>(null);
   const pinRef = useRef<HTMLDivElement>(null);
   const meterRef = useRef<HTMLOutputElement>(null);
@@ -74,15 +77,21 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
   const active = openKey ?? hovered;
   const activeRef = useRef(active);
   activeRef.current = active;
+  const openRef = useRef(openKey);
+  openRef.current = openKey;
 
   // Start the room once the page is idle, so the column is interactive
-  // first. Under Save-Data, without WebGL 2, or if anything fails, the room
-  // stays a picture and the page loses nothing else.
+  // first. Under Save-Data, without WebGL 2, with WebGL drawn by the CPU, or
+  // if anything fails, the room stays a picture and the page loses nothing
+  // else. A forced tier (?q=low|high, for testing) runs it on any WebGL 2.
   useEffect(() => {
     setEnhanced(true);
-    const isDebug = new URLSearchParams(location.search).get("debug") === "1";
+    const params = new URLSearchParams(location.search);
+    const isDebug = params.get("debug") === "1";
+    const forced = params.get("q") === "low" || params.get("q") === "high";
     setDebug(isDebug);
-    if (savesData() || !hasWebGL2()) {
+    const gl = webglSupport();
+    if (savesData() || gl === "none" || (gl === "software" && !forced)) {
       setState("picture");
       return;
     }
@@ -91,10 +100,11 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
     const begin = () => {
       import("@/lib/room/runner")
         .then(({ startRoom }) => {
-          if (ac.signal.aborted || !hostRef.current || !colRef.current || !pinRef.current) return null;
+          if (ac.signal.aborted || !hostRef.current || !colRef.current || !pinRef.current || !stripRef.current) return null;
           return startRoom({
             host: hostRef.current,
             column: colRef.current,
+            strip: stripRef.current,
             spots: spotRefs.current,
             pin: pinRef.current,
             meter: isDebug ? meterRef.current : null,
@@ -111,6 +121,7 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
           handle = h;
           handleRef.current = h;
           h.setActive(activeRef.current);
+          h.setPanel(openRef.current !== null);
         })
         .catch((err: unknown) => {
           if (ac.signal.aborted) return;
@@ -136,6 +147,10 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
   useEffect(() => {
     handleRef.current?.setStill(paused);
   }, [paused]);
+
+  useEffect(() => {
+    handleRef.current?.setPanel(openKey !== null);
+  }, [openKey]);
 
   const open = useCallback((key: RoomKey, from: HTMLElement | null) => {
     openerRef.current = from;
@@ -203,6 +218,10 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
         role="img"
         aria-label="Yonmoku's room: a quiet Japanese room with a low table and the game's board, shoji open onto a garden with a stone bath. Each item in the list is an object in the room."
       />
+      {/* The part of the page the room shows through: the whole window on
+          desktop, the strip above the column on phones. Scrolled away, the
+          room stops drawing. */}
+      <div className="room-strip" ref={stripRef} aria-hidden="true" />
       <div className="room-vignette" aria-hidden="true" />
       <div className="room-spots">
         {items.map((it) => (
