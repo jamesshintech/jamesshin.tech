@@ -10,6 +10,9 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import type { RoomKey, TimeName } from "./state";
+
+export type { RoomKey, TimeName };
 
 // Yonmoku's palette (GAME_PLAN 4.1), plus the room's own wood and cloth.
 const PALETTE = {
@@ -27,9 +30,6 @@ const MAT_L = 1.82;
 const CEIL = 2.4;
 const SHOJI_H = 1.8;
 
-/** The objects a visitor can open, each a row in the page's column. */
-export type RoomKey = "essay" | "proposal" | "board" | "phone" | "weeks" | "map";
-
 type Preset = {
   sky: [number, number];
   fog: [number, number, number];
@@ -46,8 +46,6 @@ type Preset = {
   kage: number;
   shade: number;
 };
-export type TimeName = "day" | "dusk" | "night";
-
 // Time of day: the light, the sky and how much the paper glows.
 const TIMES: Record<TimeName, Preset> = {
   day: {
@@ -122,15 +120,75 @@ export function blendTime(phase: number): Light {
   };
 }
 
-// Local clock to phase: day until 16:30, dusk by 18:30, night by 20:30,
-// dawn from 05:00 to 07:00.
-export function phaseAt(date: Date = new Date()): number {
-  const h = date.getHours() + date.getMinutes() / 60;
-  if (h >= 7 && h < 16.5) return 0;
-  if (h >= 16.5 && h < 18.5) return (h - 16.5) / 2;
-  if (h >= 18.5 && h < 20.5) return 1 + (h - 18.5) / 2;
-  if (h >= 20.5 || h < 5) return 2;
-  return 2 + (h - 5) / 2;
+// Yonmoku's falling bead (GAME_PLAN 4.1 board units): it drops 3.2 units
+// under reduced gravity and bounces twice, each bounce damped. A bead is
+// falling until the last bounce ends, then settled for good. Its height is
+// a function of its age only, so a frame drawn at any moment, or a still
+// frame long after the drop, puts it in the right place.
+const U = 0.068;
+const DROP = 3.2 * U;
+const GRAVITY = 9.8 * 0.35;
+const T_FALL = Math.sqrt((2 * DROP) / GRAVITY);
+const BOUNCE_1 = GRAVITY * T_FALL * 0.18;
+const T_1 = (2 * BOUNCE_1) / GRAVITY;
+const BOUNCE_2 = BOUNCE_1 * 0.25;
+const T_2 = (2 * BOUNCE_2) / GRAVITY;
+export const BEAD_SETTLES = T_FALL + T_1 + T_2;
+
+/** Height above its resting place, in metres, of a bead dropped `age` seconds ago; settled once the second bounce ends. */
+export function beadLift(age: number): { lift: number; settled: boolean } {
+  if (age >= BEAD_SETTLES) return { lift: 0, settled: true };
+  let y = 0;
+  if (age < T_FALL) y = DROP - 0.5 * GRAVITY * age * age;
+  else if (age - T_FALL < T_1) y = BOUNCE_1 * (age - T_FALL) - 0.5 * GRAVITY * (age - T_FALL) ** 2;
+  else y = BOUNCE_2 * (age - T_FALL - T_1) - 0.5 * GRAVITY * (age - T_FALL - T_1) ** 2;
+  return { lift: Math.max(0, y), settled: false };
+}
+
+// A yokode kyusu, the side-handled teapot of a Japanese tea set, about 9 cm
+// across: a turned body and lid (with the seam between them and a knob), a
+// tapering spout, and a straight handle at a right angle to the spout. Built
+// with its base at the origin, spout along +x, handle along -z; one geometry.
+function kyusuGeometry(): THREE.BufferGeometry {
+  const profile = [
+    [0, 0], [0.026, 0], [0.028, 0.002], [0.027, 0.004], [0.034, 0.01], [0.041, 0.02], [0.044, 0.03],
+    [0.042, 0.039], [0.036, 0.047], [0.029, 0.052], [0.0285, 0.0545], [0.0265, 0.0545], [0.0262, 0.0532],
+    [0.0252, 0.0545], [0.024, 0.057], [0.018, 0.0615], [0.01, 0.0635], [0.0055, 0.064], [0.0065, 0.067],
+    [0.0075, 0.0705], [0.006, 0.0735], [0, 0.0745],
+  ].map(([r, y]) => new THREE.Vector2(r, y));
+  const body = new THREE.LatheGeometry(profile, 36);
+
+  const spoutPath = new THREE.CatmullRomCurve3([[0.034, 0.016, 0], [0.05, 0.022, 0], [0.062, 0.034, 0], [0.07, 0.049, 0]].map(V3));
+  const rings = 18;
+  const sides = 12;
+  const spout = new THREE.TubeGeometry(spoutPath, rings, 0.0085, sides, false);
+  const sp = spout.attributes.position as THREE.BufferAttribute;
+  const centre = new THREE.Vector3();
+  const v = new THREE.Vector3();
+  for (let i = 0; i <= rings; i++) {
+    spoutPath.getPointAt(i / rings, centre);
+    const k = 1 - 0.5 * (i / rings); // tapers to half its width at the tip
+    for (let j = 0; j <= sides; j++) {
+      const n = i * (sides + 1) + j;
+      v.fromBufferAttribute(sp, n).sub(centre).multiplyScalar(k).add(centre);
+      sp.setXYZ(n, v.x, v.y, v.z);
+    }
+  }
+  spout.computeVertexNormals();
+
+  const from = new THREE.Vector3(0, 0.027, -0.034);
+  const to = new THREE.Vector3(0, 0.044, -0.104);
+  const length = from.distanceTo(to);
+  const handle = new THREE.CylinderGeometry(0.0066, 0.0086, length, 14);
+  handle.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.clone().sub(from).normalize()));
+  handle.translate((from.x + to.x) / 2, (from.y + to.y) / 2, (from.z + to.z) / 2);
+  const end = new THREE.SphereGeometry(0.0072, 14, 10);
+  end.translate(to.x, to.y, to.z);
+
+  const parts = [body, spout, handle, end];
+  const merged = mergeGeometries(parts);
+  for (const g of parts) g.dispose();
+  return merged;
 }
 
 // Kage-e: bamboo shadows on the shoji paper, drawn in its shader. The shapes
@@ -240,12 +298,13 @@ function createRipples(renderer: THREE.WebGLRenderer, aspect: number, size: numb
   simScene.add(quad);
   const tex: Uniform<THREE.Texture> = { value: read.texture };
   let acc = 0;
-  let drop: [number, number, number, number] | null = null;
+  // Drops wait their turn, one per simulation step, so none is lost.
+  const drops: [number, number, number, number][] = [];
   return {
     tex,
     texel: new THREE.Vector2(1 / size, 1 / size),
     drop(u, v, strength = 0.03, radius = 0.03) {
-      drop = [u, v, strength, radius];
+      if (drops.length < 4) drops.push([u, v, strength, radius]);
     },
     step(dt) {
       acc = Math.min(acc + dt, 0.1);
@@ -253,8 +312,7 @@ function createRipples(renderer: THREE.WebGLRenderer, aspect: number, size: numb
       while (acc >= 1 / 60) {
         acc -= 1 / 60;
         sim.uniforms.uPrev.value = read.texture;
-        sim.uniforms.uDrop.value.set(...(drop ?? [0, 0, 0, 0.03]));
-        drop = null;
+        sim.uniforms.uDrop.value.set(...(drops.shift() ?? [0, 0, 0, 0.03]));
         renderer.setRenderTarget(write);
         renderer.render(simScene, cam);
         [read, write] = [write, read];
@@ -636,8 +694,7 @@ export async function buildRoom(renderer: THREE.WebGLRenderer, { phase, low = fa
     return materials.map((m) => addRim(m, objects[key].rim)) as Ms;
   };
 
-  // The board: GAME_PLAN 4.1 proportions, 1 unit = 6.8 cm.
-  const U = 0.068;
+  // The board: GAME_PLAN 4.1 proportions, 1 unit (U) = 6.8 cm.
   const boardY = 0.333;
   const board = new THREE.Group();
   board.position.set(0, boardY, 0.15);
@@ -671,48 +728,52 @@ export async function buildRoom(renderer: THREE.WebGLRenderer, { phase, low = fa
   }
   board.add(instanced(beadGeo, boardDark, dark));
   board.add(instanced(beadGeo, boardLight, light));
-  // Yonmoku's falling bead: a tap on the board drops one onto a free peg,
-  // with gravity and two small damped bounces, like the game's.
+  // Yonmoku's falling bead: a tap on the board drops one onto the next peg
+  // with room, going round the pegs in turn, light and dark alternating.
+  // After six, the dropped beads are lifted off and the round starts again.
   const counts = slots.map((_, i) => (stacks[i] ?? "").length);
   const order = [3, 9, 12, 4, 11, 14, 8, 13, 0, 5];
-  const dropped: { mesh: THREE.Mesh; slot: number; rest: number; t0: number }[] = [];
+  type Dropped = { mesh: THREE.Mesh; slot: number; rest: number; t0: number; settled: boolean };
+  const dropped: Dropped[] = [];
   let turn = 0;
+  let cursor = 0;
   const dropBead = (now: number) => {
     if (dropped.length >= 6) {
       for (const d of dropped.splice(0)) {
         board.remove(d.mesh);
         counts[d.slot]--;
       }
-      reshadow();
     }
-    const slot = order.find((i) => counts[i] < 4);
+    let slot: number | undefined;
+    for (let n = 0; n < order.length && slot === undefined; n++) {
+      const candidate = order[(cursor + n) % order.length];
+      if (counts[candidate] < 4) {
+        slot = candidate;
+        cursor = (cursor + n + 1) % order.length;
+      }
+    }
     if (slot === undefined) return;
     const mesh = new THREE.Mesh(beadGeo, turn++ % 2 ? boardLight : boardDark);
     mesh.castShadow = true;
     const [x, z] = slots[slot];
     const rest = 0.35 * U + 0.31 * U + counts[slot] * 0.62 * U;
     counts[slot]++;
-    mesh.position.set(x, rest + 3.2 * U, z);
+    const { lift, settled } = beadLift(0);
+    mesh.position.set(x, rest + lift, z);
     board.add(mesh);
-    dropped.push({ mesh, slot, rest, t0: now });
+    dropped.push({ mesh, slot, rest, t0: now, settled });
+    // Its shadow (and that of any bead just lifted off) changes now, even if
+    // no frame is running (motion paused): the next frame drawn redraws it.
+    reshadow();
   };
   animated.push((t) => {
-    const H0 = 3.2 * U;
-    const g = 9.8 * 0.35;
-    const tFall = Math.sqrt((2 * H0) / g);
-    const b1 = g * tFall * 0.18;
-    const t1 = (2 * b1) / g;
-    const b2 = b1 * 0.25;
-    const t2 = (2 * b2) / g;
     for (const d of dropped) {
-      const e = t - d.t0;
-      // Falling or bouncing, plus one frame at rest: its shadow moves with it.
-      if (e < tFall + t1 + t2 + 0.1) reshadow();
-      let y = 0;
-      if (e < tFall) y = H0 - 0.5 * g * e * e;
-      else if (e - tFall < t1) y = b1 * (e - tFall) - 0.5 * g * (e - tFall) ** 2;
-      else if (e - tFall - t1 < t2) y = b2 * (e - tFall - t1) - 0.5 * g * (e - tFall - t1) ** 2;
-      d.mesh.position.y = d.rest + Math.max(0, y);
+      if (d.settled) continue;
+      const { lift, settled } = beadLift(t - d.t0);
+      d.mesh.position.y = d.rest + lift;
+      // A moving bead moves its shadow; so does the frame it comes to rest.
+      reshadow();
+      d.settled = settled;
     }
   });
   scene.add(board);
@@ -720,8 +781,11 @@ export async function buildRoom(renderer: THREE.WebGLRenderer, { phase, low = fa
 
   scene.add(instanced(new RoundedBoxGeometry(0.55, 0.07, 0.6, 3, 0.03), M.cloth, [M4(0, 0.035, 0.98, 0.02), M4(0.02, 0.035, -0.7, -0.03)]));
 
-  // Tray with yunomi and kyusu.
-  const tray = new THREE.Mesh(new RoundedBoxGeometry(0.26, 0.015, 0.16, 2, 0.006), M.lacquer);
+  // Tray with yunomi and kyusu. The tray is an oiled cherry obon with the
+  // grain showing: lacquer, even worn soft, caught the bright shoji at this
+  // grazing angle and read as a metal plate in daylight.
+  const trayMat = texMat(tex, "wood", { color: 0x7a3f26, rough: 0.62, normal: 0.5 });
+  const tray = new THREE.Mesh(new RoundedBoxGeometry(0.26, 0.015, 0.16, 2, 0.006), trayMat);
   tray.position.set(0.3, boardY + 0.008, 0.36);
   tray.rotation.y = -0.2;
   scene.add(tray);
@@ -729,11 +793,17 @@ export async function buildRoom(renderer: THREE.WebGLRenderer, { phase, low = fa
   cup.position.set(0.25, boardY + 0.016, 0.37);
   cup.castShadow = true;
   scene.add(cup);
-  const pot = new THREE.Mesh(new THREE.SphereGeometry(0.045, 20, 14), M.glaze);
-  pot.scale.y = 0.8;
-  pot.position.set(0.36, boardY + 0.05, 0.34);
-  pot.castShadow = true;
-  scene.add(pot);
+  // Tokoname red clay (shudei), unglazed and lightly burnished. Two-sided so
+  // the open spout shows its inside.
+  const clay = new THREE.MeshPhysicalMaterial({ color: 0x8c4a33, roughness: 0.5, clearcoat: 0.22, clearcoatRoughness: 0.45, side: THREE.DoubleSide });
+  const kyusu = new THREE.Mesh(kyusuGeometry(), clay);
+  kyusu.name = "kyusu";
+  // Spout to the front right, handle to the back right, clear of the cup.
+  kyusu.position.set(0.365, boardY + 0.0155, 0.34);
+  kyusu.rotation.y = -Math.PI / 4;
+  kyusu.castShadow = true;
+  kyusu.receiveShadow = true;
+  scene.add(kyusu);
 
   // The essay on the table, the proposal in a lacquer box by the alcove.
   const essayTex = canvasTex(512, 720, (c, w) => {
@@ -1257,7 +1327,9 @@ gl_Position = projectionMatrix * mvPosition;`,
   sun.shadow.normalBias = 0.02;
   sun.shadow.radius = 3;
 
-  let envPhase: number | null = null;
+  // The sky reflection was built for `phase` above; rebuild it only when the
+  // light has moved enough to see.
+  let envPhase = phase;
   const setPhase = (next: number) => {
     T = blendTime(next);
     fog.color.copy(T.fog[0]);
@@ -1282,7 +1354,7 @@ gl_Position = projectionMatrix * mvPosition;`,
     domeMat.uniforms.top.value.copy(T.sky[1]);
     domeMat.uniforms.horizon.value.copy(T.sky[0]);
     reshadow();
-    if (envPhase === null || Math.abs(next - envPhase) > 0.08) {
+    if (Math.abs(next - envPhase) > 0.08) {
       waterMat.envMap = rebuildSkyEnv();
       envPhase = next;
     }

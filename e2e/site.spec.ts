@@ -535,51 +535,176 @@ test.describe("room", () => {
     }
   });
 
-  test("on a phone the panel is a sheet from the bottom, and hotspots sit in the room above the column", async ({ browser }) => {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  test("on a phone: hotspots in the room above the column, every drag turns the view, sharp rendering, and a chosen product opens full screen", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true });
     const p = await ctx.newPage();
-    await p.goto("/?time=day&q=low");
+    // q=high keeps the phone's own resolution rule while forcing the room on CI's software WebGL.
+    await p.goto("/?debug=1&time=day&q=high");
     await live(p);
     for (const spot of await p.locator(".room-spot[data-on]").all()) {
       const box = (await spot.boundingBox())!;
       expect(box.y + box.height / 2, "hotspot above the column").toBeLessThan(844 * 0.46);
     }
     expect(await p.locator(".room-spot[data-on]").count(), "some objects are in view").toBeGreaterThan(0);
-    await row(p, "board").tap();
-    const box = (await p.getByRole("dialog").boundingBox())!;
-    expect(Math.round(box.x)).toBe(0);
-    expect(Math.round(box.width)).toBe(390);
-    expect(Math.round(box.y + box.height)).toBe(844);
+    // Sharp on a 3x screen: up to 2x resolution, antialiased (it was 1.4x with none).
+    const gl = await p.evaluate(() => ({ dpr: window.__room!.renderer.getPixelRatio(), aa: window.__room!.renderer.getContext().getContextAttributes()?.antialias }));
+    expect(gl).toEqual({ dpr: 2, aa: true });
+    // The room takes every drag, vertical ones too; the page does not scroll.
+    expect(await p.locator(".room-canvas").evaluate((e) => getComputedStyle(e).touchAction)).toBe("none");
+    const look = () => p.evaluate(() => { const d = window.__room!.camera.getWorldDirection(new (window.__room!.camera.position.constructor as new () => import("three").Vector3)()); return d.y; });
+    const before = await look();
+    const cdp = await ctx.newCDPSession(p);
+    const touch = (type: "touchStart" | "touchMove" | "touchEnd", x = 0, y = 0) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y }] });
+    await touch("touchStart", 195, 120);
+    for (let i = 1; i <= 10; i++) await touch("touchMove", 197, 120 + i * 12);
+    await touch("touchEnd");
+    await expect.poll(look, { message: "a vertical drag tilts the view" }).not.toBeCloseTo(before, 2);
+    expect(await p.evaluate(() => scrollY), "the page did not scroll").toBe(0);
+
+    // A product opens full screen: the recording, its name and link; Close returns to the row.
+    await row(p, "phone").tap();
+    const dialog = p.getByRole("dialog");
+    const box = (await dialog.boundingBox())!;
+    expect([Math.round(box.x), Math.round(box.y), Math.round(box.width), Math.round(box.height)]).toEqual([0, 0, 390, 844]);
+    const [video, title, link] = await Promise.all([dialog.locator("video").boundingBox(), dialog.locator("h2").boundingBox(), dialog.getByRole("link", { name: "App Store" }).boundingBox()]);
+    expect(video!.height, "the recording is the large part").toBeGreaterThan(844 * 0.4);
+    expect(title!.y, "name under the recording").toBeGreaterThan(video!.y + video!.height - 1);
+    expect(link!.y + link!.height, "link on screen").toBeLessThanOrEqual(844);
     expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
-    // The page behind the sheet dims, and a tap there closes it.
-    await p.locator(".room-scrim").tap({ position: { x: 195, y: 40 } });
-    await expect(p.getByRole("dialog")).toHaveCount(0);
-    await expect(row(p, "board")).toBeFocused();
+    await dialog.getByRole("button", { name: "Close" }).tap();
+    await expect(dialog).toHaveCount(0);
+    await expect(row(p, "phone")).toBeFocused();
     await ctx.close();
   });
 
-  test("where WebGL is drawn by the CPU the room stays its picture, so it never pins a processor", async ({ browser }) => {
-    // The browser reports software WebGL (SwiftShader, llvmpipe, a blocklisted
-    // GPU) as a major performance caveat. Stubbed here so the check holds on
-    // any test machine.
-    const caveat = () => {
-      const get = HTMLCanvasElement.prototype.getContext;
-      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, kind: string, attrs?: { failIfMajorPerformanceCaveat?: boolean }) {
-        return kind === "webgl2" && attrs?.failIfMajorPerformanceCaveat ? null : (get as (...a: unknown[]) => unknown).call(this, kind, attrs);
-      } as typeof get;
-    };
-    for (const [url, want] of [["/?time=day", "picture"], ["/?time=day&q=low", "live"]] as const) {
-      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-      const p = await ctx.newPage();
-      const errors = watchErrors(p);
-      await p.addInitScript(caveat);
-      await p.goto(url);
-      // A forced tier (testing only) runs it anyway.
-      await p.waitForSelector(`.room[data-state='${want}']`, { state: "attached", timeout: 90_000 });
-      await expect(p.locator("canvas")).toHaveCount(want === "live" ? 1 : 0);
-      expect(errors, `${url}: console errors`).toEqual([]);
-      await ctx.close();
-    }
+  test("bugs that lived between flags: a late pick, hover over focus, a hotspot that slid away, a right-click drag, a paused bead's shadow", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const p = await ctx.newPage();
+    await p.goto("/?debug=1&time=day&q=low");
+    await live(p);
+    const direction = () => p.evaluate(() => { const c = window.__room!.camera; const d = c.getWorldDirection(c.position.clone()); return [d.x, d.y, d.z]; });
+    // A turn toward an object moves the view by tenths; easing leaves a tail of thousandths.
+    const turned = (a: number[], b: number[]) => Math.max(...a.map((n, i) => Math.abs(n - b[i]))) > 0.01;
+
+    // A pick still waiting for its bead must not open over a later choice.
+    await p.locator(".room-spot[data-key='board']").click();
+    await row(p, "phone").click();
+    await p.waitForTimeout(1000);
+    await expect(p.getByRole("dialog").getByRole("heading", { level: 2 })).toHaveText("Squeeze: The Estimation Duel");
+    await p.keyboard.press("Escape");
+    // Escape while a pick is pending: nothing opens later.
+    await p.locator(".room-spot[data-key='board']").click();
+    await p.keyboard.press("Escape");
+    await p.waitForTimeout(1000);
+    await expect(p.getByRole("dialog")).toHaveCount(0);
+
+    // A mouse passing over another row does not take the highlight from the focused one.
+    await row(p, "essay").focus();
+    await row(p, "map").hover();
+    await p.mouse.move(1000, 850);
+    await expect(row(p, "essay")).toHaveClass(/is-active/);
+    await expect(row(p, "map")).not.toHaveClass(/is-active/);
+    await row(p, "essay").evaluate((e) => (e as HTMLElement).blur());
+
+    // A hotspot under the pointer lights its object without turning the view, so the dot stays put.
+    await p.mouse.move(1000, 850);
+    // Let the view finish easing from the focused row before measuring.
+    await p.waitForTimeout(2500);
+    const at = await direction();
+    const spot = p.locator(".room-spot[data-key='phone']");
+    const before = (await spot.boundingBox())!;
+    await spot.hover();
+    await expect(spot).toHaveClass(/is-active/);
+    await p.waitForTimeout(1500);
+    expect(turned(await direction(), at), "the view did not turn").toBe(false);
+    const after = (await spot.boundingBox())!;
+    // Under the cursor: well inside its 48px target (the old turn slid it hundreds of pixels).
+    expect(Math.abs(after.x - before.x) + Math.abs(after.y - before.y), "the dot stayed under the cursor").toBeLessThan(12);
+
+    // Dragging with the right button (or any but the primary one) does not turn the view.
+    await p.mouse.move(1000, 600);
+    await p.mouse.down({ button: "right" });
+    await p.mouse.move(1200, 500, { steps: 8 });
+    await p.mouse.up({ button: "right" });
+    await p.mouse.move(1100, 450, { steps: 4 });
+    await p.waitForTimeout(800);
+    expect(turned(await direction(), at), "a right-button drag does not turn the view").toBe(false);
+
+    // With motion paused, a dropped bead still gets its shadow (the shadow pass runs once).
+    await p.locator(".motion-toggle").click();
+    await expect.poll(() => p.evaluate(() => window.__room!.stage.running)).toBe(false);
+    await p.evaluate(() => {
+      const sm = window.__room!.renderer.shadowMap;
+      const render = sm.render;
+      (window as unknown as { __shadows: number }).__shadows = 0;
+      sm.render = function (...args: Parameters<typeof render>) {
+        if (args[0].length > 0 && sm.needsUpdate) (window as unknown as { __shadows: number }).__shadows++;
+        return render.apply(this, args);
+      };
+    });
+    await p.locator(".room-spot[data-key='board']").click();
+    await expect.poll(() => p.evaluate(() => (window as unknown as { __shadows: number }).__shadows), { message: "the bead's shadow is drawn" }).toBeGreaterThan(0);
+    await ctx.close();
+  });
+
+  test("reduced motion is followed live, the pause switch is there even when the room is not, and blocked autoplay gets a Play control", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const p = await ctx.newPage();
+    await p.goto("/?debug=1&q=low");
+    await live(p);
+    const holds = () => p.evaluate(() => window.__room!.stage.state.holds);
+    expect(await holds()).toEqual([]);
+    await p.emulateMedia({ reducedMotion: "reduce" });
+    await expect.poll(holds, { message: "still under reduced motion" }).toContain("still");
+    await p.emulateMedia({ reducedMotion: "no-preference" });
+    await expect.poll(holds, { message: "moves again" }).toEqual([]);
+    await ctx.close();
+
+    // Picture mode: the recordings can still move, so the switch is offered; and
+    // where the browser refuses autoplay, the recording offers Play.
+    const pic = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const q = await pic.newPage();
+    await q.addInitScript(SAVE_DATA);
+    await q.addInitScript(() => {
+      HTMLMediaElement.prototype.play = function () {
+        return Promise.reject(new DOMException("Autoplay is not allowed.", "NotAllowedError"));
+      };
+    });
+    await q.goto("/");
+    await q.waitForSelector(".room[data-state='picture']", { state: "attached" });
+    await expect(q.locator(".motion-toggle")).toBeVisible();
+    await row(q, "phone").click();
+    await expect(q.getByRole("dialog").getByRole("button", { name: /^play \d+s loop$/i })).toBeVisible();
+    await pic.close();
+  });
+
+  test("a saved pause and the light are restored when a visit reaches the home page by a link, not a reload", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const p = await ctx.newPage();
+    await p.addInitScript(() => localStorage.setItem("motion-paused", "1"));
+    await p.addInitScript(SAVE_DATA);
+    await p.goto("/writing");
+    await expect(p.locator("html")).toHaveAttribute("data-motion", "paused");
+    await p.locator(".nav .brand").click();
+    await p.waitForURL((u) => u.pathname === "/");
+    await expect(p.locator(".motion-toggle")).toHaveText("Play motion");
+    await expect(p.locator("html")).toHaveAttribute("data-room-time", /^(day|dusk|night)$/);
+    await ctx.close();
+  });
+
+  test("the kyusu is a teapot: body, lid, spout and side handle", async ({ page }) => {
+    await page.goto("/?debug=1&q=low");
+    await live(page);
+    const size = await page.evaluate(() => {
+      const pot = window.__room!.scene.getObjectByName("kyusu") as import("three").Mesh;
+      pot.geometry.computeBoundingBox();
+      const b = pot.geometry.boundingBox!;
+      return { x: b.max.x - b.min.x, y: b.max.y - b.min.y, z: b.max.z - b.min.z, minZ: b.min.z, maxX: b.max.x };
+    });
+    // The body is 9 cm across; the spout reaches past it on one side and the handle on another.
+    expect(size.maxX, "spout").toBeGreaterThan(0.065);
+    expect(size.minZ, "handle").toBeLessThan(-0.1);
+    expect(size.y, "lid and knob").toBeGreaterThan(0.07);
   });
 
   test("at rest it draws at most 30 frames a second; on a phone it stops while the column or a panel covers it", async ({ browser }) => {

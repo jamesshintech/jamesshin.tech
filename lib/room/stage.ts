@@ -1,61 +1,53 @@
-// The room's runtime: one renderer sized to its canvas, a device tier, a
-// frame loop that runs only while the room can be seen (its uncovered part
-// is on screen, nothing covers it, the tab is visible) and motion is wanted,
-// still frames on request otherwise, 30 frames a second at rest and the
-// tier's full rate only just after the visitor does something, adaptive
-// resolution, and context-loss handling. Device tiers, the pixel-ratio caps
-// and the frame meter's thresholds follow MengTo/threeui (PreviewFpsMeter:
-// 55 good, 45 watch, frames over 25 ms counted as slow).
+// The room's runtime: one renderer sized to its canvas, a device tier, and a
+// frame loop whose state is written down rather than spread across flags.
+//
+//   life:  active ──(context lost)──▶ lost        (final)
+//            └────────(dispose)────▶ disposed     (final; from any state)
+//   holds: while active, the loop runs only when nothing holds it:
+//          not-started  the room is still being built
+//          tab-hidden   the tab is in the background
+//          off-screen   the part of the page the room shows through is scrolled away
+//          covered      something opaque is over it (a phone's full-screen panel)
+//          still        reduced motion, or the visitor paused motion
+//   While held, input still draws single frames on request.
+//
+// At rest it draws 30 frames a second; the tier's full rate only just after
+// the visitor does something. Resolution is its own small machine (see
+// `quality`). Device tiers, pixel-ratio caps and the meter's thresholds
+// follow MengTo/threeui (PreviewFpsMeter: 55 good, 45 watch).
 import * as THREE from "three";
 
 export type Tier = {
   low: boolean;
   dprCap: number;
   frameCap: number;
-  reduced: boolean;
 };
 
 type NavigatorExtras = Navigator & { deviceMemory?: number };
 
-/** Low tier: a touch-first device, four cores or fewer, or 4 GB or less. `?q=low|high` and `?dpr=` override, for testing. */
+/**
+ * Phones (touch-first): the low tier's 30 frames a second and lighter scene,
+ * but up to 2x resolution with antialiasing: a 3x screen shown a 1.4x image
+ * with no antialiasing looked pixelated. Other devices with four cores or
+ * fewer, or 4 GB or less: low tier at 1.4x. Everything else: 60 frames a
+ * second at up to 1.8x. Adaptive resolution steps any of these down when
+ * frames run slow. `?q=low|high` and `?dpr=` override, for testing.
+ */
 export function deviceTier(params: URLSearchParams): Tier {
   const nav = navigator as NavigatorExtras;
-  const coarse = matchMedia("(hover: none)").matches;
+  const phone = matchMedia("(hover: none) and (pointer: coarse)").matches;
   const cores = nav.hardwareConcurrency || 8;
   const memory = nav.deviceMemory || 8;
   const forced = params.get("q");
-  const low = forced === "low" || (forced !== "high" && (coarse || cores <= 4 || memory <= 4));
+  const low = forced === "low" || (forced !== "high" && (phone || cores <= 4 || memory <= 4));
   const dpr = Number(params.get("dpr"));
+  const cap = phone && forced !== "low" ? 2 : low ? 1.4 : 1.8;
   return {
     low,
-    dprCap: dpr > 0 && dpr <= 3 ? dpr : low ? 1.4 : 1.8,
+    dprCap: dpr > 0 && dpr <= 3 ? dpr : cap,
     frameCap: low ? 30 : 60,
-    reduced: matchMedia("(prefers-reduced-motion: reduce)").matches || params.get("motion") === "off",
   };
 }
-
-export type Stage = {
-  renderer: THREE.WebGLRenderer;
-  /** Called every frame while running, and once per request while still. `dt` is 0 for a still frame. */
-  onFrame: ((t: number, dt: number) => void) | null;
-  onResize: ((w: number, h: number) => void) | null;
-  meter: Meter | null;
-  readonly running: boolean;
-  /** Frames the loop has drawn (not requested still frames). */
-  readonly frames: number;
-  /** Draw one frame soon, if the loop is not running. */
-  request(): void;
-  renderOnce(): void;
-  /** Still: the loop stops and only requested frames are drawn (reduced motion, or the visitor paused motion). */
-  setStill(still: boolean): void;
-  /** Covered: something opaque is over the room (a phone's panel sheet); the loop stops. */
-  setCovered(covered: boolean): void;
-  /** Run at the tier's full frame rate for a while: the visitor is doing something. */
-  boost(ms: number): void;
-  start(): void;
-  resize(): void;
-  dispose(): void;
-};
 
 /** The resting frame rate: steam, water and bamboo are slow, and half the frames is half the heat. */
 const REST_FPS = 30;
@@ -65,45 +57,105 @@ export function frameBudget(now: number, activeUntil: number, frameCap: number):
   return 1000 / (now < activeUntil ? frameCap : Math.min(REST_FPS, frameCap));
 }
 
+/** A frame is slow when it took half as long again as its budget. */
+export function isSlowFrame(gap: number, budget: number): boolean {
+  return gap > budget * 1.5;
+}
+
+/**
+ * Resolution steps: the tier's cap, then 1.6, 1.4, 1.15 and 1 below it.
+ * warming: just started or resized; frames are not judged (shader warm-up,
+ *          texture upload and a resize all make the first frames slow).
+ * watching: frames are judged; when the average frame runs more than a third
+ *          over its budget for about two seconds, step down and warm again.
+ * It never steps back up: with the rate capped, a frame gap cannot show
+ * spare capacity, only a shortfall, so going up would be a guess.
+ */
+export function qualitySteps(cap: number): number[] {
+  return [cap, ...[1.6, 1.4, 1.15, 1].filter((d) => d < cap - 0.01)];
+}
+
+export type Hold = "not-started" | "tab-hidden" | "off-screen" | "covered" | "still";
+export type Life = "active" | "lost" | "disposed";
+export type StageState = { life: Life; holds: Hold[]; running: boolean; dpr: number; quality: "warming" | "watching" };
+
+export type Stage = {
+  renderer: THREE.WebGLRenderer;
+  /** Called every frame while running, and once per request while held. `dt` is 0 for a single frame. */
+  onFrame: ((t: number, dt: number) => void) | null;
+  onResize: ((w: number, h: number) => void) | null;
+  meter: Meter | null;
+  readonly state: StageState;
+  readonly running: boolean;
+  /** Frames the loop has drawn (not requested single frames). */
+  readonly frames: number;
+  /** Draw one frame soon, if the loop is not running. */
+  request(): void;
+  renderOnce(): void;
+  setStill(still: boolean): void;
+  setCovered(covered: boolean): void;
+  /** Run at the tier's full frame rate for a while: the visitor is doing something. */
+  boost(ms: number): void;
+  start(): void;
+  resize(): void;
+  dispose(): void;
+};
+
 export function createStage(
   canvas: HTMLCanvasElement,
   tier: Tier,
   {
     signal,
+    still,
     onContextLost,
     watch = canvas,
   }: {
     signal: AbortSignal;
+    still: boolean;
     onContextLost: () => void;
     /** The part of the page through which the room is seen; the loop stops when it scrolls away. */
     watch?: Element;
   },
 ): Stage {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !tier.low || devicePixelRatio < 2, powerPreference: "default" });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "default" });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, tier.dprCap));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  let started = false;
+  let life: Life = "active";
+  const holds = new Set<Hold>(["not-started"]);
+  if (still) holds.add("still");
+  if (document.hidden) holds.add("tab-hidden");
   let running = false;
-  let still = tier.reduced;
-  let covered = false;
-  let visible = true;
-  let activeUntil = 0;
-  let frames = 0;
-  let lost = false;
-  let disposed = false;
   let raf = 0;
   let pending = 0;
   let lastFrame = 0;
+  let activeUntil = 0;
+  let frames = 0;
+
+  // Resolution.
+  const steps = qualitySteps(tier.dprCap);
+  let level = 0;
+  let over = 1; // moving average of frame gap / budget
+  let warmUntil = 0;
+  let judged = 0;
+  const warm = (now = performance.now()) => {
+    warmUntil = now + 2000;
+    over = 1;
+    judged = 0;
+  };
 
   const stage: Stage = {
     renderer,
     onFrame: null,
     onResize: null,
     meter: null,
+    get state() {
+      const quality: StageState["quality"] = performance.now() < warmUntil ? "warming" : "watching";
+      return { life, holds: [...holds], running, dpr: renderer.getPixelRatio(), quality };
+    },
     get running() {
       return running;
     },
@@ -112,60 +164,65 @@ export function createStage(
     },
     request,
     renderOnce,
-    setStill(next) {
-      still = next;
-      sync();
-      if (!running) request();
-    },
-    setCovered(next) {
-      covered = next;
-      sync();
-    },
+    setStill: (on) => hold("still", on),
+    setCovered: (on) => hold("covered", on),
     boost(ms) {
       activeUntil = Math.max(activeUntil, performance.now() + ms);
     },
-    // Nothing runs until the room exists: frames spent waiting on textures
-    // would read as a slow GPU and step the resolution down for nothing.
-    start() {
-      started = true;
-      sync();
-    },
+    start: () => hold("not-started", false),
     resize,
     dispose,
   };
 
   function renderOnce() {
-    if (lost || disposed) return;
+    if (life !== "active") return;
     stage.onFrame?.(performance.now() / 1000, 0);
   }
-  // Input while the loop is stopped draws one frame.
   function request() {
-    if (running || pending || disposed) return;
+    if (running || pending || life !== "active") return;
     pending = requestAnimationFrame(() => {
       pending = 0;
       renderOnce();
     });
   }
 
+  function hold(reason: Hold, on: boolean) {
+    if (on === holds.has(reason)) return;
+    if (on) holds.add(reason);
+    else holds.delete(reason);
+    sync();
+    // Released but still held for another reason: show the current state once.
+    if (!on && !running) request();
+  }
+
+  function sync() {
+    const want = life === "active" && holds.size === 0;
+    if (want && !running) {
+      running = true;
+      lastFrame = 0;
+      warm();
+      stage.meter?.reset();
+      raf = requestAnimationFrame(tick);
+    } else if (!want && running) {
+      running = false;
+      cancelAnimationFrame(raf);
+      stage.meter?.idle([...holds]);
+    }
+  }
+
   function resize() {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-    if (!w || !h || disposed) return;
+    if (!w || !h || life !== "active") return;
     renderer.setSize(w, h, false);
     stage.onResize?.(w, h);
+    warm();
     if (!running) renderOnce();
   }
   const ro = new ResizeObserver(resize);
   ro.observe(canvas);
 
-  // Adaptive resolution: when frames run more than a third over their budget
-  // (at whichever rate applies) for about a second and a half, step the pixel
-  // ratio down, so a slow GPU gets a softer image, never a hot laptop.
-  const steps = [tier.dprCap, 1.4, 1.15, 1].filter((d, i, a) => i === 0 || d < a[0]);
-  let level = 0;
-  let over = 1; // moving average of frame gap / budget
-  let settled = 0;
-  const tick = (now: number) => {
+  function tick(now: number) {
     raf = requestAnimationFrame(tick);
     const budget = frameBudget(now, activeUntil, tier.frameCap);
     if (now - lastFrame < budget - 2) return;
@@ -174,50 +231,28 @@ export function createStage(
     lastFrame = now;
     frames++;
     stage.onFrame?.(now / 1000, dt);
-    stage.meter?.sample(now);
+    stage.meter?.sample(now, budget);
+    if (now < warmUntil) return;
     over = over * 0.95 + Math.min(4, gap / budget) * 0.05;
-    if (++settled > 90 && over > 1.35 && level < steps.length - 1) {
+    if (++judged > 60 && over > 1.35 && level < steps.length - 1) {
       level++;
       renderer.setPixelRatio(Math.min(devicePixelRatio || 1, steps[level]));
       resize();
-      settled = 0;
-      over = 1;
-    }
-  };
-
-  function sync() {
-    const want = started && visible && !covered && !document.hidden && !still && !lost && !disposed;
-    if (want && !running) {
-      running = true;
-      lastFrame = 0;
-      settled = 0;
-      over = 1;
-      stage.meter?.reset();
-      raf = requestAnimationFrame(tick);
-    } else if (!want && running) {
-      running = false;
-      cancelAnimationFrame(raf);
-      stage.meter?.idle(document.hidden ? "tab hidden" : !visible ? "off screen" : covered ? "covered" : "still");
     }
   }
+
   // The canvas is fixed and always "on screen"; what matters is whether the
-  // part of the page the room shows through is. Under a tenth of it: stop.
-  const io = new IntersectionObserver(
-    ([entry]) => {
-      visible = (entry?.intersectionRatio ?? 1) >= 0.1;
-      sync();
-      if (visible && !running) request();
-    },
-    { threshold: [0, 0.1, 0.25] },
-  );
+  // part of the page the room shows through is. Under a tenth of it: held.
+  const io = new IntersectionObserver(([entry]) => hold("off-screen", (entry?.intersectionRatio ?? 1) < 0.1), { threshold: [0, 0.1, 0.25] });
   io.observe(watch);
-  document.addEventListener("visibilitychange", sync, { signal });
+  document.addEventListener("visibilitychange", () => hold("tab-hidden", document.hidden), { signal });
 
   canvas.addEventListener(
     "webglcontextlost",
     (e) => {
       e.preventDefault();
-      lost = true;
+      if (life !== "active") return;
+      life = "lost";
       sync();
       onContextLost();
     },
@@ -225,8 +260,8 @@ export function createStage(
   );
 
   function dispose() {
-    if (disposed) return;
-    disposed = true;
+    if (life === "disposed") return;
+    life = "disposed";
     running = false;
     cancelAnimationFrame(raf);
     cancelAnimationFrame(pending);
@@ -245,46 +280,47 @@ export function createStage(
 
 export type Meter = {
   reset(): void;
-  sample(now: number): void;
-  idle(reason: string): void;
+  sample(now: number, budget: number): void;
+  idle(holds: Hold[]): void;
 };
 
-// Frame rate, frames over budget, draw calls, triangles and the tier, shown
-// only with ?debug=1, so "it does not strain the browser" can be read.
+// Frame rate against the rate it is aiming for, frames over budget, draw
+// calls, triangles, tier and resolution, shown only with ?debug=1; when the
+// loop is held, why.
 export function createMeter(el: HTMLElement, renderer: THREE.WebGLRenderer, tier: Tier): Meter {
   let start = 0;
   let prev = 0;
   let frames = 0;
   let slow = 0;
-  const write = (fps: string, rating: string) => {
+  let aim = REST_FPS;
+  const write = (head: string, rating: string) => {
     const info = renderer.info.render;
     el.dataset.rating = rating;
-    el.textContent = `${fps} · ${info.calls} draws · ${(info.triangles / 1000).toFixed(1)}k tris · ${tier.low ? "low" : "high"} tier · dpr ${renderer.getPixelRatio().toFixed(2)}`;
+    el.textContent = `${head} · ${info.calls} draws · ${(info.triangles / 1000).toFixed(1)}k tris · ${tier.low ? "low" : "high"} tier · dpr ${renderer.getPixelRatio().toFixed(2)}`;
   };
   const meter: Meter = {
     reset() {
       start = prev = frames = slow = 0;
     },
-    sample(now) {
+    sample(now, budget) {
+      aim = Math.round(1000 / budget);
       if (!start) {
         start = prev = now;
         return;
       }
-      const d = now - prev;
+      if (isSlowFrame(now - prev, budget)) slow++;
       prev = now;
       frames++;
-      if (d > (tier.frameCap === 60 ? 25 : 45)) slow++;
       if (now - start >= 1000) {
         const fps = Math.round((frames * 1000) / (now - start));
-        const target = tier.frameCap;
-        write(`${fps} fps, ${slow} slow`, fps >= target - 5 ? "good" : fps >= target - 15 ? "watch" : "slow");
+        write(`${fps}/${aim} fps, ${slow} slow`, fps >= aim - 5 ? "good" : fps >= aim - 15 ? "watch" : "slow");
         meter.reset();
       }
     },
-    idle(reason) {
-      write(`paused (${reason})`, "idle");
+    idle(holds) {
+      write(`held: ${holds.join(", ") || "none"}`, "idle");
     },
   };
-  meter.idle(tier.reduced ? "reduced motion" : "loading");
+  meter.idle(["not-started"]);
   return meter;
 }

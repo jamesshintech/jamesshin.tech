@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type MouseEvent } from "react";
+import { useEffect, useReducer, useRef, useState, useSyncExternalStore, type MouseEvent } from "react";
 import type { Loop } from "@/data/projects";
-import type { RoomHandle, RoomKey, TimeName } from "@/lib/room/runner";
+import type { RoomHandle } from "@/lib/room/runner";
 import { savesData, webglSupport } from "@/lib/room/support";
+import { NO_SELECTION, activeOf, chosenPhase, roomStatus, selection, timeNameOf, type RoomKey, type RoomStatus, type TimeName } from "@/lib/room/state";
 import { isMotionPaused, subscribeMotion } from "@/lib/motion";
-import { VideoLoop } from "@/components/story/VideoLoop";
+import { VideoLoop, useReducedMotion } from "@/components/story/VideoLoop";
 import { MotionToggle } from "@/components/home/MotionToggle";
 
 // The home page: the Yonmoku room fills the screen, and a column carries
@@ -17,7 +18,8 @@ import { MotionToggle } from "@/components/home/MotionToggle";
 // link); the room loads after the page is idle, from its own chunk, and
 // until its first frame the room is a picture of itself. Where the room would
 // strain the device (WebGL drawn by the CPU) or was asked not to load
-// (Save-Data), it stays that picture.
+// (Save-Data), it stays that picture. Its state machines (the room's
+// lifecycle, what the reader is looking at) are in lib/room/state.ts.
 
 export type RoomItem = {
   key: RoomKey;
@@ -47,20 +49,23 @@ type Props = {
   year: number;
 };
 
-type State = "poster" | "live" | "picture";
 const TIME_NAMES: Record<TimeName, string> = { day: "Daylight", dusk: "Dusk", night: "Night" };
 const pad2 = (n: number) => String(n).padStart(2, "0");
-
 const plainClick = (e: MouseEvent) => e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+/** CSS sees three looks: the picture (waiting or loading), live, or the picture for good. */
+const look = (s: RoomStatus) => (s.kind === "live" ? "live" : s.kind === "picture" ? "picture" : "poster");
 
 export function StudyHome({ name, role, intro, items, productsHeading, contactEmail, linkedin, github, year }: Props) {
-  const [state, setState] = useState<State>("poster");
+  const [status, dispatchStatus] = useReducer(roomStatus, { kind: "waiting" });
+  const [sel, dispatchSel] = useReducer(selection, NO_SELECTION);
   const [time, setTime] = useState<TimeName | null>(null);
-  const [hovered, setHovered] = useState<RoomKey | null>(null);
-  const [openKey, setOpenKey] = useState<RoomKey | null>(null);
   const [debug, setDebug] = useState(false);
   const [enhanced, setEnhanced] = useState(false);
+  const [forcedStill, setForcedStill] = useState(false);
   const paused = useSyncExternalStore(subscribeMotion, isMotionPaused, () => false);
+  const reduced = useReducedMotion();
+  // One answer to "should the room move on its own?", followed live.
+  const still = reduced || paused || forcedStill;
 
   const hostRef = useRef<HTMLDivElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
@@ -71,14 +76,29 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
   const spotRefs = useRef(new Map<RoomKey, HTMLElement>());
   const rowRefs = useRef(new Map<RoomKey, HTMLElement>());
   const handleRef = useRef<RoomHandle | null>(null);
-  const openerRef = useRef<HTMLElement | null>(null);
-  const pickTimer = useRef(0);
+  const pickDelay = useRef(0);
+  const pickToken = useRef(0);
 
-  const active = openKey ?? hovered;
-  const activeRef = useRef(active);
-  activeRef.current = active;
-  const openRef = useRef(openKey);
-  openRef.current = openKey;
+  const active = activeOf(sel);
+  const activeKey = active?.key ?? null;
+  const panelKey = sel.panel.kind === "closed" ? null : sel.panel.key;
+  const openKey = sel.panel.kind === "open" ? sel.panel.key : null;
+  // What the room must know when it arrives, kept current for that moment.
+  const latest = useRef({ active, panel: panelKey !== null, still });
+  latest.current = { active, panel: panelKey !== null, still };
+
+  // The light's name, from the same rule as the room and the inline script,
+  // kept on <html> (the picture is chosen by it) and in the caption.
+  useEffect(() => {
+    const tick = () => {
+      const name = timeNameOf(chosenPhase(location.search));
+      document.documentElement.setAttribute("data-room-time", name);
+      setTime(name);
+    };
+    tick();
+    const id = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   // Start the room once the page is idle, so the column is interactive
   // first. Under Save-Data, without WebGL 2, with WebGL drawn by the CPU, or
@@ -89,15 +109,19 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
     const params = new URLSearchParams(location.search);
     const isDebug = params.get("debug") === "1";
     const forced = params.get("q") === "low" || params.get("q") === "high";
+    const forceStill = params.get("motion") === "off";
     setDebug(isDebug);
+    setForcedStill(forceStill);
     const gl = webglSupport();
-    if (savesData() || gl === "none" || (gl === "software" && !forced)) {
-      setState("picture");
+    const why = savesData() ? "save-data" : gl === "none" ? "no-webgl" : gl === "software" && !forced ? "software-webgl" : null;
+    if (why) {
+      dispatchStatus({ type: "unavailable", why });
       return;
     }
     const ac = new AbortController();
     let handle: RoomHandle | null = null;
     const begin = () => {
+      dispatchStatus({ type: "start" });
       import("@/lib/room/runner")
         .then(({ startRoom }) => {
           if (ac.signal.aborted || !hostRef.current || !colRef.current || !pinRef.current || !stripRef.current) return null;
@@ -108,11 +132,10 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
             spots: spotRefs.current,
             pin: pinRef.current,
             meter: isDebug ? meterRef.current : null,
-            still: isMotionPaused(),
+            still: latest.current.still || forceStill,
             signal: ac.signal,
-            onFirstFrame: () => setState("live"),
-            onTime: setTime,
-            onLost: () => setState("picture"),
+            onFirstFrame: () => dispatchStatus({ type: "first-frame" }),
+            onLost: () => dispatchStatus({ type: "lost" }),
           });
         })
         .then((h) => {
@@ -120,13 +143,13 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
           if (ac.signal.aborted) return h.dispose();
           handle = h;
           handleRef.current = h;
-          h.setActive(activeRef.current);
-          h.setPanel(openRef.current !== null);
+          h.setActive(latest.current.active);
+          h.setPanel(latest.current.panel);
         })
         .catch((err: unknown) => {
           if (ac.signal.aborted) return;
           console.warn("The room could not start; showing its picture instead.", err);
-          setState("picture");
+          dispatchStatus({ type: "failed" });
         });
     };
     const idle = window.requestIdleCallback ? window.requestIdleCallback(begin, { timeout: 1500 }) : window.setTimeout(begin, 200);
@@ -134,69 +157,77 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
       ac.abort();
       if (window.cancelIdleCallback) window.cancelIdleCallback(idle);
       else window.clearTimeout(idle);
-      window.clearTimeout(pickTimer.current);
       handle?.dispose();
       handleRef.current = null;
     };
   }, []);
 
+  // The room follows the page's state; it never keeps its own copy.
   useEffect(() => {
     handleRef.current?.setActive(active);
-  }, [active]);
-
+    // `active` is rebuilt every render; its key and turn are what matter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeKey, active?.turn]);
   useEffect(() => {
-    handleRef.current?.setStill(paused);
-  }, [paused]);
-
+    handleRef.current?.setStill(still);
+  }, [still]);
   useEffect(() => {
-    handleRef.current?.setPanel(openKey !== null);
+    handleRef.current?.setPanel(panelKey !== null);
+  }, [panelKey]);
+
+  // A pending pick opens when the bead has landed, unless something else was
+  // chosen or the panel closed first (the reducer ignores a stale token).
+  useEffect(() => {
+    if (sel.panel.kind !== "pending") return;
+    const token = sel.panel.token;
+    const id = window.setTimeout(() => dispatchSel({ type: "settle", token }), pickDelay.current);
+    return () => window.clearTimeout(id);
+  }, [sel.panel]);
+
+  // Focus follows the panel: into it when it opens, back to the item's row
+  // when it closes (also when the object was clicked: the hotspots are
+  // pointer shortcuts, hidden from assistive technology).
+  const wasOpen = useRef<RoomKey | null>(null);
+  useEffect(() => {
+    if (openKey) closeRef.current?.focus();
+    else if (wasOpen.current) rowRefs.current.get(wasOpen.current)?.focus({ preventScroll: true });
+    wasOpen.current = openKey;
   }, [openKey]);
 
-  const open = useCallback((key: RoomKey, from: HTMLElement | null) => {
-    openerRef.current = from;
-    setOpenKey(key);
-  }, []);
-
-  const close = useCallback(() => {
-    setOpenKey(null);
-    // The opener is the row, also when the object was clicked: the room's
-    // hotspots are pointer shortcuts, hidden from assistive technology.
-    openerRef.current?.focus({ preventScroll: true });
-  }, []);
-
   useEffect(() => {
-    if (!openKey) return;
-    closeRef.current?.focus();
+    if (sel.panel.kind === "closed") return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape") dispatchSel({ type: "close" });
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [openKey, close]);
+  }, [sel.panel.kind]);
 
+  const close = () => dispatchSel({ type: "close" });
   const pick = (key: RoomKey) => {
     const delay = handleRef.current?.pick(key) ?? 0;
-    window.clearTimeout(pickTimer.current);
-    pickTimer.current = window.setTimeout(() => open(key, rowRefs.current.get(key) ?? null), delay);
+    if (delay <= 0) return dispatchSel({ type: "open", key });
+    pickDelay.current = delay;
+    dispatchSel({ type: "pick", key, token: ++pickToken.current });
   };
 
   const samples = items.filter((i) => i.group === "samples");
   const products = items.filter((i) => i.group === "products");
   const openItem = items.find((i) => i.key === openKey) ?? null;
-  // While a panel is open it names the item; the label would only sit under it.
-  const pinItem = openKey ? null : (items.find((i) => i.key === active) ?? null);
+  // While a panel is open or opening it names the item; the label would only sit under it.
+  const pinItem = panelKey ? null : (items.find((i) => i.key === activeKey) ?? null);
 
   const rowProps = (it: RoomItem) => ({
-    className: `room-item${active === it.key ? " is-active" : ""}`,
+    className: `room-item${activeKey === it.key ? " is-active" : ""}`,
     "data-key": it.key,
     ref: (el: HTMLAnchorElement | null) => {
       if (el) rowRefs.current.set(it.key, el);
       else rowRefs.current.delete(it.key);
     },
-    onPointerEnter: () => setHovered(it.key),
-    onPointerLeave: () => setHovered((k) => (k === it.key ? null : k)),
-    onFocus: () => setHovered(it.key),
-    onBlur: () => setHovered((k) => (k === it.key ? null : k)),
+    onPointerEnter: () => dispatchSel({ type: "hover", key: it.key, from: "row" }),
+    onPointerLeave: () => dispatchSel({ type: "unhover", key: it.key }),
+    onFocus: () => dispatchSel({ type: "focus", key: it.key }),
+    onBlur: () => dispatchSel({ type: "blur", key: it.key }),
   });
 
   const rowBody = (it: RoomItem, n?: number) => (
@@ -211,7 +242,7 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
   );
 
   return (
-    <div className="room" data-state={state} data-debug={debug ? "" : undefined}>
+    <div className="room" data-state={look(status)} data-why={status.kind === "picture" ? status.why : undefined} data-debug={debug ? "" : undefined}>
       <div
         className="room-stage"
         ref={hostRef}
@@ -228,7 +259,7 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
           <button
             key={it.key}
             type="button"
-            className={`room-spot${active === it.key ? " is-active" : ""}`}
+            className={`room-spot${activeKey === it.key ? " is-active" : ""}`}
             data-key={it.key}
             tabIndex={-1}
             aria-hidden="true"
@@ -236,8 +267,8 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
               if (el) spotRefs.current.set(it.key, el);
               else spotRefs.current.delete(it.key);
             }}
-            onPointerEnter={() => setHovered(it.key)}
-            onPointerLeave={() => setHovered((k) => (k === it.key ? null : k))}
+            onPointerEnter={() => dispatchSel({ type: "hover", key: it.key, from: "spot" })}
+            onPointerLeave={() => dispatchSel({ type: "unhover", key: it.key })}
             onClick={() => pick(it.key)}
           >
             <span className="room-spot-dot" />
@@ -313,7 +344,7 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
                     onClick={(e) => {
                       if (!plainClick(e)) return;
                       e.preventDefault();
-                      open(it.key, e.currentTarget);
+                      dispatchSel({ type: "open", key: it.key });
                     }}
                     {...rowProps(it)}
                   >
@@ -350,9 +381,11 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
             <span>
               © {year} {name}
             </span>
-            {state === "live" && <MotionToggle className="room-toggle" />}
+            {/* Always offered: the recordings move on their own even when the
+                room cannot (picture mode). Hidden under reduced motion by CSS. */}
+            <MotionToggle className="room-toggle" />
           </div>
-          {state === "live" && time && (
+          {status.kind === "live" && time && (
             <p className="room-caption mono">
               Yonmoku&rsquo;s room · {TIME_NAMES[time]} at your local time · Drag to look around
             </p>
@@ -361,8 +394,6 @@ export function StudyHome({ name, role, intro, items, productsHeading, contactEm
         </footer>
       </div>
 
-      {/* On phones the panel is a sheet; the page behind it dims, and a tap there closes it. */}
-      {openItem && <div className="room-scrim" aria-hidden="true" onClick={close} />}
       {openItem && (
         <aside className="room-panel" role="dialog" aria-modal="false" aria-labelledby="room-panel-h">
           <div className="room-panel-head">

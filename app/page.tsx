@@ -10,12 +10,6 @@ export const metadata: Metadata = {
   alternates: { canonical: absoluteUrl() },
 };
 
-// Before first paint: restore the visitor's "pause motion" choice
-// (lib/motion.ts), and pick the room's picture for the visitor's time of day
-// (lib/room/scene.ts phaseAt, rounded to the nearest of the three lights),
-// so the picture shown while the room loads matches the light it loads in.
-const GATE = `(function(){var d=document.documentElement;try{if(localStorage.getItem("motion-paused")==="1")d.setAttribute("data-motion","paused")}catch(e){}var q=/[?&]time=(day|dusk|night)\\b/.exec(location.search),n=new Date(),h=n.getHours()+n.getMinutes()/60;d.setAttribute("data-room-time",q?q[1]:h>=6&&h<17.5?"day":h>=17.5&&h<19.5?"dusk":"night")})();`;
-
 /** "4.1 MB": the size of a file under public/, read at build time so the label never drifts from the file. */
 function fileSize(href: string): string {
   const bytes = fs.statSync(path.join(process.cwd(), "public", href)).size;
@@ -88,7 +82,6 @@ export default function Home() {
 
   return (
     <>
-      <script dangerouslySetInnerHTML={{ __html: GATE }} />
       <StudyHome
         name={siteConfig.name}
         role={siteConfig.role}

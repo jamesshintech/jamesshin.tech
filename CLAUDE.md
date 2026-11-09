@@ -35,6 +35,12 @@ decisions log). Ask before departing from it.
   `node scripts/room-posters.mjs` against `pnpm build && pnpm start`.
 - GLSL: never write a reversed `smoothstep` (edge0 >= edge1); it is undefined
   and returns 0 on Apple's Metal path. Write `1.0 - smoothstep(lo, hi, x)`.
+- State machines live in `lib/room/state.ts` (room lifecycle, selection) or
+  are named at the top of their module (stage holds, gestures, resolution,
+  bead). Add a state there, not a new boolean; give it a unit test.
+- Phones: `touch-action: none` on the room (every drag turns it), up to 2x
+  with antialiasing, full-screen panel. Breakpoint: `(width < 900px)` in CSS
+  is the exact complement of `WIDE_QUERY` in state.ts; change both together.
 - `?debug=1` shows the frame meter and exposes `window.__room`; `?time=`,
   `?q=low|high`, `?dpr=` and `?motion=off` pin the light, tier, pixel ratio
   and motion.

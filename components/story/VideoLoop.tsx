@@ -26,21 +26,30 @@ export function useReducedMotion(): boolean {
   );
 }
 
+// Two modes. auto: it plays while in view, unless the visitor paused motion.
+// asked: it plays only after the visitor presses Play; that is the mode under
+// reduced motion, and also when the browser refuses autoplay (iOS Low Power
+// Mode does), which otherwise left a still poster with no way to start it.
+// A Play press belongs to the mode it was made in.
+//
 // `href` links the recording itself (hidden from assistive tech, which gets the
-// product name link instead). The reduced-motion control is a sibling of
-// that link, never inside it, so it stays reachable and never navigates.
+// product name link instead). The Play control is a sibling of that link,
+// never inside it, so it stays reachable and never navigates.
 export function VideoLoop({ loop, className = "phone", href }: { loop: Loop; className?: string; href?: string }) {
   const ref = useRef<HTMLVideoElement>(null);
   const reduced = useReducedMotion();
-  const [wantsPlay, setWantsPlay] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [wants, setWants] = useState<{ on: boolean; reduced: boolean }>({ on: false, reduced: false });
   const paused = useSyncExternalStore(subscribeMotion, isMotionPaused, () => false);
+  const asked = reduced || blocked;
+  const wantsPlay = wants.on && wants.reduced === reduced;
 
   useEffect(() => {
     const v = ref.current;
     if (!v) return;
-    // Under reduced motion only an explicit Play runs the loop, and the
-    // visitor's own Play outranks the page-wide pause.
-    const allowed = reduced ? wantsPlay : !paused;
+    // In asked mode only the visitor's Play runs the loop, and it outranks
+    // the page-wide pause.
+    const allowed = asked ? wantsPlay : !paused;
     if (!allowed) {
       v.pause();
       return;
@@ -50,7 +59,11 @@ export function VideoLoop({ loop, className = "phone", href }: { loop: Loop; cla
         for (const e of entries) {
           if (e.isIntersecting) {
             if (v.preload === "none") v.preload = "auto";
-            v.play().catch(() => {});
+            v.play().catch((err: unknown) => {
+              // Refused without a gesture: offer Play. (An AbortError only
+              // means a pause interrupted it.)
+              if (err instanceof DOMException && err.name === "NotAllowedError") setBlocked(true);
+            });
           } else {
             v.pause();
           }
@@ -60,7 +73,7 @@ export function VideoLoop({ loop, className = "phone", href }: { loop: Loop; cla
     );
     io.observe(v);
     return () => io.disconnect();
-  }, [reduced, wantsPlay, paused]);
+  }, [asked, wantsPlay, paused]);
 
   const video = (
     <video
@@ -88,8 +101,8 @@ export function VideoLoop({ loop, className = "phone", href }: { loop: Loop; cla
       ) : (
         video
       )}
-      {reduced && (
-        <button type="button" className="btn play" aria-pressed={wantsPlay} onClick={() => setWantsPlay((w) => !w)}>
+      {asked && (
+        <button type="button" className="btn play" aria-pressed={wantsPlay} onClick={() => setWants({ on: !wantsPlay, reduced })}>
           {wantsPlay ? "Pause loop" : `Play ${loop.seconds}s loop`}
         </button>
       )}

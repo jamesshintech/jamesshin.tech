@@ -58,6 +58,14 @@ export const metadata: Metadata = {
   },
 };
 
+// Before first paint, on whichever page a visit starts (a later client-side
+// visit to the home page runs no inline script): restore the visitor's
+// "pause motion" choice (lib/motion.ts), and name the light for the visitor's
+// time of day (lib/room/state.ts chosenPhase and timeNameOf, for ?time= and
+// the clock), so the home page's picture matches the room it fades into.
+// The home page re-applies the light from the TypeScript rule on mount.
+const GATE = `(function(){var d=document.documentElement;try{if(localStorage.getItem("motion-paused")==="1")d.setAttribute("data-motion","paused")}catch(e){}var q=/[?&]time=(day|dusk|night)\\b/.exec(location.search),n=new Date(),h=n.getHours()+n.getMinutes()/60;d.setAttribute("data-room-time",q?q[1]:h>=6&&h<17.5?"day":h>=17.5&&h<19.5?"dusk":"night")})();`;
+
 const personJsonLd = {
   "@context": "https://schema.org",
   "@type": "Person",
@@ -72,11 +80,12 @@ const personJsonLd = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    // The home page adds a class (its pin gate) and maybe data-motion (the
-    // visitor's saved pause) to <html> before first paint, so the client's
+    // The gate script below sets data-room-time and maybe data-motion (the
+    // visitor's saved pause) on <html> before first paint, so the client's
     // attributes never match the server's exactly.
     <html lang="en" className={`${grotesk.variable} ${mono.variable}`} suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: GATE }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(personJsonLd) }} />
       </head>
       <body>
